@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "ReadLater + Todos",
   "version": "1.0",
-  "description": "A lightweight extension to save reading links and manage todos.",
+  "description": "Save links, manage todos, and sync 'Must-read' items to Telegram. Local & Privacy-focused.",
   "permissions": [
     "storage",
     "activeTab",

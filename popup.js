@@ -476,8 +476,7 @@ async function renderTagCandidates(itemId) {
     availableTags.forEach(tag => {
         const isSelected = existingTags.includes(tag);
         const span = document.createElement('span');
-        const className = `tag-${tag.replace(/ /g, '-')}`;
-        span.className = `item-tag ${className}`;
+        span.className = `item-tag ${getTagClass(tag)}`;
 
         if (isSelected) {
             span.style.border = "1px solid var(--primary)";
@@ -522,10 +521,7 @@ async function renderSettingsTags() {
     tags.forEach(tag => {
         const li = document.createElement('div');
         li.className = 'item-tag';
-
-        // Add specific color class if it exists (backward compatibility for defaults)
-        const className = `tag-${tag.replace(/ /g, '-')}`;
-        li.classList.add(className);
+        li.classList.add(getTagClass(tag));
 
         li.textContent = tag;
 
@@ -629,4 +625,30 @@ function escapeHtml(text) {
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
+}
+
+/* Helper to generate consistent color class for any tag string */
+function getTagClass(tagName) {
+    // Keep 'Must-read' specifically red if using the override class, 
+    // but the override in CSS handles .tag-Must-read.
+    // We can just rely on the CSS cascade or return specific class for known ones if we want strictly fixed colors for defaults.
+
+    // Let's use specific classes for the original defaults to preserve their exact look if liked, 
+    // OR just use the hash which will be consistent anyway.
+    // The CSS has .tag-Must-read defined, so let's include that.
+
+    // Sanitize for specific class lookup
+    const safeName = tagName.replace(/ /g, '-');
+    // If it matches a specific override in CSS (we kept .tag-Must-read etc)
+    if (["Must-read", "Course-to-check", "Interesting-Person", "Interesting-Project", "Job-to-apply"].includes(safeName)) {
+        return `tag-${safeName}`;
+    }
+
+    // Otherwise generate hash
+    let hash = 0;
+    for (let i = 0; i < tagName.length; i++) {
+        hash = tagName.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const index = Math.abs(hash) % 10; // We have 0-9 classes
+    return `tag-color-${index}`;
 }
