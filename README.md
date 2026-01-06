@@ -5,12 +5,30 @@ Built with **Manifest V3**, it stores all data locally in your browser and suppo
 
 ## Features
 
-- 📚 **Reading List**: Save current tabs with one click.
-- ✅ **Todo List**: Manage tasks and "Writing Ideas".
-- 🏷️ **Dynamic Tags**: Tag your items (e.g., "Must-read", "Job to apply", "Draft").
-- 🔗 **Bi-directional Linking**: Link reading items to specific tasks (e.g., link a research article to a "Writing" task).
-- ✈️ **Telegram Sync**: Automatically send "Must-read" links to your personal Telegram chat.
-- 🔒 **Privacy First**: No backend, no accounts. All data stays in `chrome.storage.local`.
+### 📚 Reading List
+- **One-click Save**: Instantly save the current tab.
+- **Tags**: Organize with color-coded tags (e.g., "Must-read", "Structure").
+- **Dynamic Colors**: valid PNGs New tags automatically get assigned a consistent, vibrant color.
+
+### ✅ Todo List
+- **Task Management**: Create tasks directly or **save the current tab as a task**.
+- **Context**: Add notes to any task.
+- **Rich Links**: Tasks saved from tabs include a direct link to the source URL.
+- **Workflow**: Mark items as done (✓) or delete them (×) with a single click.
+
+### 🔗 Bi-directional Linking
+- Link any **Reading Item** to a **Todo Task** (and vice versa).
+- Useful for connecting research materials to the tasks that require them.
+
+### ✈️ Telegram Sync
+Automatically sync important items to your Telegram Channel or Chat.
+- Tag as **"Must-read"** → Sends with 📚 emoji.
+- Tag as **"Video to watch"** → Sends with 🎬 emoji.
+
+### 🔒 Privacy First
+- No backend.
+- No user accounts.
+- All data resides in `chrome.storage.local`.
 
 ## Installation
 
@@ -22,30 +40,22 @@ Built with **Manifest V3**, it stores all data locally in your browser and suppo
 
 ## Usage
 
-### Saving Pages
-- Click the extension icon.
-- In the "Reading" tab, select a tag (optional) and click **Save Current Tab**.
+### Saving Pages (Reading)
+1. Open the **Reading** tab.
+2. Select a tag (optional).
+3. Click **Save Current Tab**.
 
 ### Managing Todos
-- Switch to the "Todos" tab.
-- Add new tasks.
-- Use the `+` button on a task to tag it (e.g., "Idea", "Priority").
-
-### Linking Items
-- Click the `🔗 linked` badge on any item.
-- Select the item from the other list you want to link to.
+1. Open the **Todos** tab.
+2. (Optional) Select a tag and add a **Note**.
+3. Click **Save Current Tab as Task** to capture the URL, or just type a title if adding manually (future update).
+4. Use the tick checkmark (✓) to toggle status and the cross (×) to delete.
 
 ### Telegram Sync Setup
 1. Go to **Settings** (⚙️ icon).
-2. Enter your **Bot Token** and **Chat ID**.
+2. Enter your **Bot Token** and **Chat ID** (or Channel Username like `@mychannel`).
 3. Use the **Test Connection** button to verify.
-4. Tag any item as **"Must-read"** to instantly sync it to Telegram.
-
-## Permissions
-
-- `storage`: To save your lists locally.
-- `activeTab`: To capture the title and URL of the page you are saving.
-- `contextMenus`: (Optional) To save pages via right-click.
+4. Add tags `Must-read` or `Video to watch` to items to sync them.
 
 ## License
 
