@@ -159,14 +159,27 @@ function setupEventListeners() {
     });
 
     // Add Todo
+    const todoAttachLink = document.getElementById('todo-attach-link');
+    const todoNoteInput = document.getElementById('todo-note-input');
+
     const addTodoHandler = async () => {
         const title = todoInput.value.trim();
         if (title) {
+            let url = '';
+            if (todoAttachLink.checked) {
+                const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+                url = tab ? tab.url : '';
+            }
+            const note = todoNoteInput.value.trim();
+
             await Storage.addTodoItem({
                 title: title,
-                description: ''
+                description: note,
+                url: url
             });
             todoInput.value = '';
+            todoNoteInput.value = '';
+            todoAttachLink.checked = false;
             await refreshData();
         }
     };
@@ -273,9 +286,13 @@ function renderTodoList(list) {
 
             // Generate Tags HTML
             const tagsHtml = (item.tags || []).map(tag => {
-                const className = `tag-${tag.replace(/ /g, '-')}`;
+                const className = getTagClass(tag);
                 return `<span class="item-tag ${className}">${escapeHtml(tag)}</span>`;
             }).join('');
+
+            // Generate URL and Note HTML
+            const urlHtml = item.url ? `<div class="todo-url">🔗 <a href="${item.url}" target="_blank">${escapeHtml(new URL(item.url).hostname)}</a></div>` : '';
+            const noteHtml = item.description ? `<div class="todo-note">${escapeHtml(item.description)}</div>` : '';
 
             li.innerHTML = `
         <div class="item-header">
@@ -287,6 +304,8 @@ function renderTodoList(list) {
              <button class="action-btn btn-delete" title="Delete">×</button>
            </div>
         </div>
+        ${urlHtml}
+        ${noteHtml}
         <div class="tags-list">
             ${tagsHtml}
             <button class="action-btn btn-add-tag" title="Add Tag" style="font-size:12px; margin-left:4px;">+</button>

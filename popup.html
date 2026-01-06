@@ -84,11 +84,19 @@
         </div>
       </section>
 
-      <!-- Todo List View -->
       <section id="view-todos" class="view">
-        <div class="input-area inline-form">
-          <input type="text" id="todo-input" placeholder="Add a new task..." />
-          <button id="btn-add-todo" class="icon-btn">+</button>
+        <div class="input-area">
+          <div class="inline-form">
+            <input type="text" id="todo-input" placeholder="Add a new task..." />
+            <button id="btn-add-todo" class="icon-btn">+</button>
+          </div>
+          <div class="todo-options">
+            <label class="checkbox-label">
+              <input type="checkbox" id="todo-attach-link" />
+              <span>Attach current tab link</span>
+            </label>
+            <textarea id="todo-note-input" placeholder="Add a note (optional)..." rows="2"></textarea>
+          </div>
         </div>
         <ul id="todo-list" class="item-list"></ul>
         <div id="todo-empty" class="empty-state hidden">
