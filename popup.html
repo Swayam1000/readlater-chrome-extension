@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ReadDo</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+
+<body>
+  <div class="app-container">
+    <header>
+      <div class="logo-area">
+        <img src="icons/icon48.png" alt="Logo" class="logo">
+        <h1>ReadDo</h1>
+      </div>
+      <div class="header-actions">
+        <button id="btn-settings" class="action-btn" title="Settings">⚙️</button>
+      </div>
+    </header>
+
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="reading">Reading</button>
+      <button class="tab-btn" data-tab="todos">Todos</button>
+    </div>
+
+    <main>
+      <!-- Settings View -->
+      <section id="view-settings" class="view">
+        <div class="settings-container">
+          <h3>Telegram Sync</h3>
+          <p class="hint">Sync "Must-read" items to Telegram.</p>
+
+          <div class="form-group">
+            <label for="tg-bot-token">Bot Token</label>
+            <input type="password" id="tg-bot-token" placeholder="123456:ABC-DEF..." />
+          </div>
+
+          <div class="form-group">
+            <label for="tg-chat-id">Chat ID</label>
+            <input type="text" id="tg-chat-id" placeholder="@channel or 12345..." />
+          </div>
+
+          <div class="inline-actions" style="display:flex; gap:8px; margin-bottom:8px;">
+            <button id="btn-test-connection" class="secondary-btn full-width"
+              style="background:#e2e8f0; color:#0f172a;">Test Connection</button>
+            <button id="btn-save-settings" class="primary-btn full-width">Save Settings</button>
+          </div>
+
+          <div class="divider" style="height:1px; background:var(--border); margin:16px 0;"></div>
+
+          <h3>Manage Tags</h3>
+          <ul id="settings-tags-list" class="tags-list" style="margin-bottom:8px;"></ul>
+          <div class="inline-form">
+            <input type="text" id="new-tag-input" placeholder="New tag name..." />
+            <button id="btn-add-tag" class="primary-btn">+</button>
+          </div>
+
+          <p id="settings-status" class="status-msg"></p>
+        </div>
+      </section>
+
+      <!-- Reading List View -->
+      <section id="view-reading" class="view active">
+        <div class="input-area">
+          <button id="btn-save-current" class="primary-btn full-width">
+            <span class="icon">+</span> Save Current Tab
+          </button>
+          <div class="tags-input-container">
+            <select id="tag-selector" class="tag-select">
+              <option value="">Add Tag...</option>
+              <option value="Must-read">Must-read</option>
+              <option value="Course to check">Course to check</option>
+              <option value="Interesting Person">Interesting Person</option>
+              <option value="Interesting Project">Interesting Project</option>
+              <option value="Job to apply">Job to apply</option>
+            </select>
+          </div>
+        </div>
+        <ul id="reading-list" class="item-list"></ul>
+        <div id="reading-empty" class="empty-state hidden">
+          <p>No articles saved yet.</p>
+        </div>
+      </section>
+
+      <!-- Todo List View -->
+      <section id="view-todos" class="view">
+        <div class="input-area inline-form">
+          <input type="text" id="todo-input" placeholder="Add a new task..." />
+          <button id="btn-add-todo" class="icon-btn">+</button>
+        </div>
+        <ul id="todo-list" class="item-list"></ul>
+        <div id="todo-empty" class="empty-state hidden">
+          <p>No tasks yet. Stay focused!</p>
+        </div>
+      </section>
+    </main>
+
+    <!-- Overlay for Linking (Hidden by default) -->
+    <div id="link-overlay" class="overlay hidden">
+      <div class="overlay-content">
+        <h3>Link to...</h3>
+        <ul id="link-candidates" class="item-list small"></ul>
+        <button id="btn-close-overlay">Cancel</button>
+      </div>
+    </div>
+
+    <!-- Overlay for Tags (Hidden by default) -->
+    <div id="tag-overlay" class="overlay hidden">
+      <div class="overlay-content">
+        <h3>Add Tag</h3>
+        <div id="tag-candidates" class="tags-list large-tags">
+          <!-- Dynamic -->
+        </div>
+        <button id="btn-close-tag-overlay" style="margin-top:12px;">Cancel</button>
+      </div>
+    </div>
+  </div>
+  <script src="storage.js"></script>
+  <script src="popup.js"></script>
+</body>
+
+</html>
