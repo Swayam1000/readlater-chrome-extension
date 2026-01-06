@@ -152,7 +152,7 @@ function setupEventListeners() {
 
             // Sync if Must-read or Video to watch
             if (selectedTag === 'Must-read' || selectedTag === 'Video to watch') {
-                await checkAndSyncToTelegram(tab.title, tab.url);
+                await checkAndSyncToTelegram(tab.title, tab.url, selectedTag);
             }
 
             tagSelector.value = ""; // Reset
@@ -504,7 +504,7 @@ async function renderTagCandidates(itemId) {
                     newTags = [...existingTags, tag];
                     // Sync if adding Must-read or Video to watch
                     if (tag === 'Must-read' || tag === 'Video to watch') {
-                        await checkAndSyncToTelegram(item.title, item.url || '(No URL)');
+                        await checkAndSyncToTelegram(item.title, item.url || '(No URL)', tag);
                     }
                 }
 
@@ -599,7 +599,7 @@ async function loadSettings() {
     inputChatId.value = result.telegramChatId || '';
 }
 
-async function checkAndSyncToTelegram(title, url) {
+async function checkAndSyncToTelegram(title, url, tag = 'Must-read') {
     const { telegramBotToken, telegramChatId } = await chrome.storage.local.get(['telegramBotToken', 'telegramChatId']);
 
     if (!telegramBotToken || !telegramChatId) {
@@ -607,7 +607,9 @@ async function checkAndSyncToTelegram(title, url) {
         return;
     }
 
-    const message = `📚 *Must Read*\n\n${escapeMarkdown(title)}\n${url}`;
+    // Choose emoji based on tag
+    const emoji = tag === 'Video to watch' ? '🎬' : '📚';
+    const message = `${emoji} *${escapeMarkdown(tag)}*\n\n${escapeMarkdown(title)}\n${url}`;
     await sendTelegramMessage(telegramBotToken, telegramChatId, message);
 }
 
