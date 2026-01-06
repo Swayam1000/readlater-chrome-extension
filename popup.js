@@ -150,8 +150,8 @@ function setupEventListeners() {
                 tags: selectedTag ? [selectedTag] : []
             });
 
-            // Sync if Must-read
-            if (selectedTag === 'Must-read') {
+            // Sync if Must-read or Video to watch
+            if (selectedTag === 'Must-read' || selectedTag === 'Video to watch') {
                 await checkAndSyncToTelegram(tab.title, tab.url);
             }
 
@@ -502,8 +502,8 @@ async function renderTagCandidates(itemId) {
                 } else {
                     // Add tag
                     newTags = [...existingTags, tag];
-                    // Sync if adding Must-read
-                    if (tag === 'Must-read') {
+                    // Sync if adding Must-read or Video to watch
+                    if (tag === 'Must-read' || tag === 'Video to watch') {
                         await checkAndSyncToTelegram(item.title, item.url || '(No URL)');
                     }
                 }
