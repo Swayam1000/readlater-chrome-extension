@@ -34,8 +34,9 @@ const newTagInput = document.getElementById('new-tag-input');
 const btnAddTag = document.getElementById('btn-add-tag');
 
 const btnSaveCurrent = document.getElementById('btn-save-current');
-const btnAddTodo = document.getElementById('btn-add-todo');
-const todoInput = document.getElementById('todo-input');
+const btnSaveTodo = document.getElementById('btn-save-todo');
+const todoTagSelector = document.getElementById('todo-tag-selector');
+const todoNoteInput = document.getElementById('todo-note-input');
 
 const overlay = document.getElementById('link-overlay');
 const linkCandidates = document.getElementById('link-candidates');
@@ -49,7 +50,8 @@ const btnCloseTagOverlay = document.getElementById('btn-close-tag-overlay');
 document.addEventListener('DOMContentLoaded', async () => {
     setupTabs();
     setupEventListeners();
-    await updateMainTagSelector(); // Init selector
+    await updateMainTagSelector();
+    await updateTodoTagSelector();
     await refreshData();
 });
 
@@ -158,34 +160,24 @@ function setupEventListeners() {
         }
     });
 
-    // Add Todo
-    const todoAttachLink = document.getElementById('todo-attach-link');
-    const todoNoteInput = document.getElementById('todo-note-input');
+    // Save Todo (Current Tab)
+    btnSaveTodo.addEventListener('click', async () => {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        const selectedTag = todoTagSelector.value;
+        const note = todoNoteInput.value.trim();
 
-    const addTodoHandler = async () => {
-        const title = todoInput.value.trim();
-        if (title) {
-            let url = '';
-            if (todoAttachLink.checked) {
-                const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-                url = tab ? tab.url : '';
-            }
-            const note = todoNoteInput.value.trim();
-
+        if (tab) {
             await Storage.addTodoItem({
-                title: title,
+                title: tab.title,
                 description: note,
-                url: url
+                url: tab.url,
+                tags: selectedTag ? [selectedTag] : []
             });
-            todoInput.value = '';
+
+            todoTagSelector.value = '';
             todoNoteInput.value = '';
-            todoAttachLink.checked = false;
             await refreshData();
         }
-    };
-    btnAddTodo.addEventListener('click', addTodoHandler);
-    todoInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') addTodoHandler();
     });
 
     // Close Overlay
@@ -584,6 +576,20 @@ async function updateMainTagSelector() {
         tagSelector.appendChild(option);
     });
     tagSelector.value = currentVal;
+}
+
+async function updateTodoTagSelector() {
+    if (!todoTagSelector) return;
+    const currentVal = todoTagSelector.value;
+    todoTagSelector.innerHTML = '<option value="">Add Tag...</option>';
+    const tags = await getAvailableTags();
+    tags.forEach(tag => {
+        const option = document.createElement('option');
+        option.value = tag;
+        option.textContent = tag;
+        todoTagSelector.appendChild(option);
+    });
+    todoTagSelector.value = currentVal;
 }
 // We need to call this when popup opens
 
