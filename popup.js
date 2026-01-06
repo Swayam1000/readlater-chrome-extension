@@ -614,7 +614,8 @@ async function sendTelegramMessage(token, chatId, text) {
 }
 
 function escapeMarkdown(text) {
-    return text.replace(/[_*[\]()~`>#+\-=|{}.!]/g, '\\$&');
+    // Only escape characters that break Telegram's Markdown parsing
+    return text.replace(/[_*`\[\]]/g, '\\$&');
 }
 
 function escapeHtml(text) {
