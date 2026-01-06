@@ -288,11 +288,9 @@ function renderTodoList(list) {
 
             li.innerHTML = `
         <div class="item-header">
-           <div class="checkbox ${item.status === 'done' ? 'checked' : ''}">
-             ${item.status === 'done' ? '✓' : ''}
-           </div>
-           <span class="item-title ${item.status === 'done' ? 'done' : ''}">${escapeHtml(item.title)}</span>
+           <a href="${item.url || '#'}" target="_blank" class="item-title ${item.status === 'done' ? 'done' : ''}">${escapeHtml(item.title)}</a>
            <div class="actions">
+             <button class="action-btn btn-toggle-status" title="Toggle Done Status">${item.status === 'done' ? '↩' : '✓'}</button>
              <button class="action-btn btn-delete" title="Delete">×</button>
            </div>
         </div>
@@ -310,7 +308,7 @@ function renderTodoList(list) {
       `;
 
             // Events
-            li.querySelector('.checkbox').addEventListener('click', async () => {
+            li.querySelector('.btn-toggle-status').addEventListener('click', async () => {
                 const newStatus = item.status === 'done' ? 'open' : 'done';
                 await Storage.updateTodoItem(item.id, { status: newStatus });
                 await refreshData();
