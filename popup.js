@@ -811,7 +811,7 @@ btnRestore.addEventListener('click', async () => {
 
         // 2. Get File Path
         const fileId = chat.pinned_message.document.file_id;
-        const file path = await getTelegramFile(telegramBotToken, fileId);
+        const file_path = await getTelegramFile(telegramBotToken, fileId);
         if (!file_path) throw new Error('Could not get file path.');
 
         // 3. Download
