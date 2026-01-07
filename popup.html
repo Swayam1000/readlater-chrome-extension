@@ -86,15 +86,25 @@
 
       <section id="view-todos" class="view">
         <div class="input-area">
+          <input type="text" id="todo-input" placeholder="What needs to be done?"
+            style="margin-bottom:8px; width:100%; box-sizing:border-box;">
+
           <div class="todo-options">
             <select id="todo-tag-selector" class="tag-select">
               <option value="">Add Tag...</option>
             </select>
             <textarea id="todo-note-input" placeholder="Add a note (optional)..." rows="2"></textarea>
           </div>
-          <button id="btn-save-todo" class="primary-btn full-width">
-            <span class="icon">+</span> Save Current Tab as Task
-          </button>
+
+          <div class="action-buttons" style="display:flex; gap:8px; margin-top:8px;">
+            <button id="btn-save-todo" class="primary-btn" style="flex:1;">
+              <span class="icon">🔗</span> Save Tab
+            </button>
+            <button id="btn-add-manual-todo" class="secondary-btn"
+              style="flex:1; background:var(--bg-secondary); color:var(--text-primary); border:1px solid var(--border);">
+              <span class="icon">+</span> Add Task
+            </button>
+          </div>
         </div>
         <ul id="todo-list" class="item-list"></ul>
         <div id="todo-empty" class="empty-state hidden">

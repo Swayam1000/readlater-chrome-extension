@@ -165,6 +165,11 @@ function setupEventListeners() {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
         const selectedTag = todoTagSelector.value;
         const note = todoNoteInput.value.trim();
+        const manualTitle = document.getElementById('todo-input').value.trim();
+
+        // If manual title is present, prioritize it? Or should this button ONLY be for current tab?
+        // User asked for "another button" for manual add.
+        // So this button remains strictly for "Save Current Tab".
 
         if (tab) {
             await Storage.addTodoItem({
@@ -176,8 +181,43 @@ function setupEventListeners() {
 
             todoTagSelector.value = '';
             todoNoteInput.value = '';
+            document.getElementById('todo-input').value = ''; // Clear manual input just in case
             await refreshData();
         }
+    });
+
+    // Add Manual Todo
+    const btnAddManualTodo = document.getElementById('btn-add-manual-todo');
+    const todoManualInput = document.getElementById('todo-input');
+
+    const addManualTodoHandler = async () => {
+        const title = todoManualInput.value.trim();
+        const selectedTag = todoTagSelector.value;
+        const note = todoNoteInput.value.trim();
+
+        if (title) {
+            await Storage.addTodoItem({
+                title: title,
+                description: note,
+                url: '', // No URL for manual task
+                tags: selectedTag ? [selectedTag] : []
+            });
+
+            todoManualInput.value = '';
+            todoTagSelector.value = '';
+            todoNoteInput.value = '';
+            await refreshData();
+        } else {
+            // Highlight input if empty
+            todoManualInput.focus();
+            todoManualInput.style.borderColor = 'red';
+            setTimeout(() => todoManualInput.style.borderColor = '', 1000);
+        }
+    };
+
+    btnAddManualTodo.addEventListener('click', addManualTodoHandler);
+    todoManualInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') addManualTodoHandler();
     });
 
     // Close Overlay
