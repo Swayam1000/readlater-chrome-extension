@@ -805,9 +805,9 @@ btnRestore.addEventListener('click', async () => {
     try {
         // 1. Get Chat info to find Pinned Message
         const chat = await getTelegramChat(telegramBotToken, telegramChatId);
-        if (!chat || !chat.pinned_message || !chat.pinned_message.document) {
-            throw new Error('No pinned backup file found in chat.');
-        }
+        if (!chat) throw new Error('Could not access Telegram Chat. Check ID/Token.');
+        if (!chat.pinned_message) throw new Error('No Pinned Message found in this chat. Please Backup first!');
+        if (!chat.pinned_message.document) throw new Error('Pinned message is not a file.');
 
         // 2. Get File Path
         const fileId = chat.pinned_message.document.file_id;
@@ -831,8 +831,10 @@ btnRestore.addEventListener('click', async () => {
 
     } catch (e) {
         console.error(e);
-        settingsStatus.textContent = `Restore Failed: ${e.message}`;
+        const errorMsg = `Restore Failed: ${e.message}`;
+        settingsStatus.textContent = errorMsg;
         settingsStatus.className = 'status-msg error';
+        alert(errorMsg); // Force user attention
     }
 });
 
