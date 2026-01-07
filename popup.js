@@ -838,11 +838,8 @@ document.getElementById('btn-toggle-logs')?.addEventListener('click', () => {
 
 // Restore from Telegram
 btnRestore.addEventListener('click', async () => {
-    uiLog('Restore Button Clicked.');
-    if (!confirm('Restore data? (Check logs if fails)')) {
-        uiLog('Restore Cancelled by user.');
-        return;
-    }
+    uiLog('Restore Button Clicked. Starting...');
+    // Removed confirm() to debug if it was blocking Atlas
 
     const { telegramBotToken, telegramChatId } = await chrome.storage.local.get(['telegramBotToken', 'telegramChatId']);
     uiLog(`Starting Restore. Token present: ${!!telegramBotToken}, ChatID: ${telegramChatId}`);
