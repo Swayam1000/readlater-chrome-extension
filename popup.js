@@ -302,6 +302,15 @@ function renderReadingList(list) {
         displayList = list.filter(item => (item.tags || []).includes(currentReadFilter));
     }
 
+    // Sort by Priority
+    displayList.sort((a, b) => {
+        const aPriority = (a.tags || []).includes('Priority');
+        const bPriority = (b.tags || []).includes('Priority');
+        if (aPriority && !bPriority) return -1;
+        if (!aPriority && bPriority) return 1;
+        return 0; // Keep original order (newest first)
+    });
+
     if (displayList.length === 0) {
         // Only show empty state if real list is empty, OR if filter returns empty? 
         // Better to separate "No items" vs "No items matches filter". 
@@ -385,6 +394,15 @@ function renderTodoList(list) {
     if (currentTodoFilter) {
         displayList = list.filter(item => (item.tags || []).includes(currentTodoFilter));
     }
+
+    // Sort by Priority
+    displayList.sort((a, b) => {
+        const aPriority = (a.tags || []).includes('Priority');
+        const bPriority = (b.tags || []).includes('Priority');
+        if (aPriority && !bPriority) return -1;
+        if (!aPriority && bPriority) return 1;
+        return 0; // Keep original order (newest first)
+    });
 
     if (displayList.length === 0) {
         if (list.length > 0) {
@@ -549,7 +567,7 @@ let taggingTargetType = null; // 'reading' or 'todo'
 
 // ... getAvailableTags etc ...
 async function getAvailableTags() {
-    const defaultTags = ["Must-read", "Course to check", "Interesting Person", "Interesting Project", "Job to apply"];
+    const defaultTags = ["Must-read", "Priority", "Course to check", "Interesting Person", "Interesting Project", "Job to apply"];
     const result = await chrome.storage.local.get(['allTags']);
 
     // Initialize if not present
