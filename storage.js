@@ -134,14 +134,15 @@ const Storage = {
       reading.linkedTodoIds = reading.linkedTodoIds.filter(id => id !== todoId);
     }
     await this._saveLists(readingList, todoList);
-  }
-    // -- Data Sync --
-  static async exportData() {
+  },
+
+  // -- Data Sync --
+  async exportData() {
     const data = await chrome.storage.local.get(null);
     return JSON.stringify(data);
-  }
+  },
 
-  static async importData(jsonString) {
+  async importData(jsonString) {
     try {
       const data = JSON.parse(jsonString);
       if (!data || typeof data !== 'object') throw new Error('Invalid JSON');
