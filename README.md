@@ -51,6 +51,25 @@ Automatically sync important items to your Telegram Channel or Chat.
 3. Click **Save Current Tab as Task** to capture the URL, or just type a title if adding manually (future update).
 4. Use the tick checkmark (✓) to toggle status and the cross (×) to delete.
 
+### ☁️ Cloud Sync (Multi-Device Support)
+Sync your data between different browsers (e.g., Chrome, Brave, ChatGPT Atlas) using your Telegram Chat as a secure cloud storage.
+
+1.  **Backup**:
+    *   Go to **Settings** -> Click **☁️ Backup to TG**.
+    *   This uploads your data to your chat and **Pins** the message.
+2.  **Restore**:
+    *   On your other device, enter the same Bot Token & Chat ID.
+    *   Click **📥 Restore from TG**.
+    *   The extension finds the pinned backup and restores your data.
+
+> **Note for Atlas Browser Users**: If you cannot copy/paste your token using keyboard shortcuts, use the **Paste 📋** button next to the input fields.
+
+### 📱 Telegram Setup
+1.  Create a bot via [@BotFather](https://t.me/BotFather) and get the **API Token**.
+2.  Start a chat with your bot (or add it to a group/channel).
+3.  Get your **Chat ID** (forward a message to [@userinfobot](https://t.me/userinfobot)).
+4.  **Important**: If using a Group/Channel, ensure the Bot is an **Admin** with "Pin Messages" permission.
+
 ### Telegram Sync Setup
 1. Go to **Settings** (⚙️ icon).
 2. Enter your **Bot Token** and **Chat ID** (or Channel Username like `@mychannel`).
