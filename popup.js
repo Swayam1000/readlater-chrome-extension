@@ -139,111 +139,110 @@ function setupEventListeners() {
             await updateTodoTagSelector();
             await updateFilterDropdowns();
         }
-    }
     });
 
-// Save Current Tab
-btnSaveCurrent.addEventListener('click', async () => {
-    // Get current tab info
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    const tagSelector = document.getElementById('tag-selector');
-    const selectedTag = tagSelector.value;
+    // Save Current Tab
+    btnSaveCurrent.addEventListener('click', async () => {
+        // Get current tab info
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        const tagSelector = document.getElementById('tag-selector');
+        const selectedTag = tagSelector.value;
 
-    if (tab) {
-        await Storage.addReadingItem({
-            url: tab.url,
-            title: tab.title,
-            favIconUrl: tab.favIconUrl || '',
-            tags: selectedTag ? [selectedTag] : []
-        });
+        if (tab) {
+            await Storage.addReadingItem({
+                url: tab.url,
+                title: tab.title,
+                favIconUrl: tab.favIconUrl || '',
+                tags: selectedTag ? [selectedTag] : []
+            });
 
-        // Sync if Must-read or Video to watch
-        if (selectedTag === 'Must-read' || selectedTag === 'Video to watch') {
-            await checkAndSyncToTelegram(tab.title, tab.url, selectedTag);
+            // Sync if Must-read or Video to watch
+            if (selectedTag === 'Must-read' || selectedTag === 'Video to watch') {
+                await checkAndSyncToTelegram(tab.title, tab.url, selectedTag);
+            }
+
+            tagSelector.value = ""; // Reset
+            await refreshData();
         }
-
-        tagSelector.value = ""; // Reset
-        await refreshData();
-    }
-});
-
-// Save Todo (Current Tab)
-btnSaveTodo.addEventListener('click', async () => {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    const selectedTag = todoTagSelector.value;
-    const note = todoNoteInput.value.trim();
-    const manualTitle = document.getElementById('todo-input').value.trim();
-
-    // If manual title is present, prioritize it? Or should this button ONLY be for current tab?
-    // User asked for "another button" for manual add.
-    // So this button remains strictly for "Save Current Tab".
-
-    if (tab) {
-        await Storage.addTodoItem({
-            title: tab.title,
-            description: note,
-            url: tab.url,
-            tags: selectedTag ? [selectedTag] : []
-        });
-
-        todoTagSelector.value = '';
-        todoNoteInput.value = '';
-        document.getElementById('todo-input').value = ''; // Clear manual input just in case
-        await refreshData();
-    }
-});
-
-// Add Manual Todo
-const btnAddManualTodo = document.getElementById('btn-add-manual-todo');
-const todoManualInput = document.getElementById('todo-input');
-
-const addManualTodoHandler = async () => {
-    const title = todoManualInput.value.trim();
-    const selectedTag = todoTagSelector.value;
-    const note = todoNoteInput.value.trim();
-
-    if (title) {
-        await Storage.addTodoItem({
-            title: title,
-            description: note,
-            url: '', // No URL for manual task
-            tags: selectedTag ? [selectedTag] : []
-        });
-
-        todoManualInput.value = '';
-        todoTagSelector.value = '';
-        todoNoteInput.value = '';
-        await refreshData();
-    } else {
-        // Highlight input if empty
-        todoManualInput.focus();
-        todoManualInput.style.borderColor = 'red';
-        setTimeout(() => todoManualInput.style.borderColor = '', 1000);
-    }
-};
-
-btnAddManualTodo.addEventListener('click', addManualTodoHandler);
-todoManualInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') addManualTodoHandler();
-});
-
-// Close Overlay
-btnCloseOverlay.addEventListener('click', closeOverlay);
-btnCloseTagOverlay.addEventListener('click', closeTagOverlay);
-
-// Filter Change Listeners
-if (readingFilter) {
-    readingFilter.addEventListener('change', () => {
-        currentReadFilter = readingFilter.value;
-        renderReadingList(activeReadingList);
     });
-}
-if (todoFilter) {
-    todoFilter.addEventListener('change', () => {
-        currentTodoFilter = todoFilter.value;
-        renderTodoList(activeTodoList);
+
+    // Save Todo (Current Tab)
+    btnSaveTodo.addEventListener('click', async () => {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        const selectedTag = todoTagSelector.value;
+        const note = todoNoteInput.value.trim();
+        const manualTitle = document.getElementById('todo-input').value.trim();
+
+        // If manual title is present, prioritize it? Or should this button ONLY be for current tab?
+        // User asked for "another button" for manual add.
+        // So this button remains strictly for "Save Current Tab".
+
+        if (tab) {
+            await Storage.addTodoItem({
+                title: tab.title,
+                description: note,
+                url: tab.url,
+                tags: selectedTag ? [selectedTag] : []
+            });
+
+            todoTagSelector.value = '';
+            todoNoteInput.value = '';
+            document.getElementById('todo-input').value = ''; // Clear manual input just in case
+            await refreshData();
+        }
     });
-}
+
+    // Add Manual Todo
+    const btnAddManualTodo = document.getElementById('btn-add-manual-todo');
+    const todoManualInput = document.getElementById('todo-input');
+
+    const addManualTodoHandler = async () => {
+        const title = todoManualInput.value.trim();
+        const selectedTag = todoTagSelector.value;
+        const note = todoNoteInput.value.trim();
+
+        if (title) {
+            await Storage.addTodoItem({
+                title: title,
+                description: note,
+                url: '', // No URL for manual task
+                tags: selectedTag ? [selectedTag] : []
+            });
+
+            todoManualInput.value = '';
+            todoTagSelector.value = '';
+            todoNoteInput.value = '';
+            await refreshData();
+        } else {
+            // Highlight input if empty
+            todoManualInput.focus();
+            todoManualInput.style.borderColor = 'red';
+            setTimeout(() => todoManualInput.style.borderColor = '', 1000);
+        }
+    };
+
+    btnAddManualTodo.addEventListener('click', addManualTodoHandler);
+    todoManualInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') addManualTodoHandler();
+    });
+
+    // Close Overlay
+    btnCloseOverlay.addEventListener('click', closeOverlay);
+    btnCloseTagOverlay.addEventListener('click', closeTagOverlay);
+
+    // Filter Change Listeners
+    if (readingFilter) {
+        readingFilter.addEventListener('change', () => {
+            currentReadFilter = readingFilter.value;
+            renderReadingList(activeReadingList);
+        });
+    }
+    if (todoFilter) {
+        todoFilter.addEventListener('change', () => {
+            currentTodoFilter = todoFilter.value;
+            renderTodoList(activeTodoList);
+        });
+    }
 }
 
 // -- Rendering --
