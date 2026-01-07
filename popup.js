@@ -746,6 +746,146 @@ async function sendTelegramMessage(token, chatId, text) {
     }
 }
 
+const btnBackup = document.getElementById('btn-backup');
+const btnRestore = document.getElementById('btn-restore');
+
+// ... (existing code)
+
+// Backup to Telegram
+btnBackup.addEventListener('click', async () => {
+    if (!confirm('Backup current data to Telegram? This will PIN the backup file in your chat. Ensure your Bot is an Admin if using a Channel.')) return;
+
+    const { telegramBotToken, telegramChatId } = await chrome.storage.local.get(['telegramBotToken', 'telegramChatId']);
+    if (!telegramBotToken || !telegramChatId) {
+        alert('Please save Bot Token and Chat ID first.');
+        return;
+    }
+
+    settingsStatus.textContent = 'Backing up...';
+    settingsStatus.className = 'status-msg';
+
+    try {
+        const jsonString = await Storage.exportData();
+        const blob = new Blob([jsonString], { type: 'application/json' });
+        const filename = `readlater_backup_${new Date().toISOString().slice(0, 10)}.json`;
+
+        const message = await sendTelegramDocument(telegramBotToken, telegramChatId, blob, filename);
+        if (message && message.message_id) {
+            const pinned = await pinTelegramMessage(telegramBotToken, telegramChatId, message.message_id);
+            if (pinned) {
+                settingsStatus.textContent = 'Backup Pinned! ✅';
+                settingsStatus.className = 'status-msg success';
+            } else {
+                settingsStatus.textContent = 'Uploaded, but Pin failed. (Bot needs Admin?)';
+                settingsStatus.className = 'status-msg warning';
+            }
+        } else {
+            throw new Error('Upload failed');
+        }
+    } catch (e) {
+        console.error(e);
+        settingsStatus.textContent = 'Backup Failed ❌';
+        settingsStatus.className = 'status-msg error';
+    }
+});
+
+// Restore from Telegram
+btnRestore.addEventListener('click', async () => {
+    if (!confirm('Restore data from Telegram? This will OVERWRITE your current local data using the Pinned Message in your chat.')) return;
+
+    const { telegramBotToken, telegramChatId } = await chrome.storage.local.get(['telegramBotToken', 'telegramChatId']);
+    if (!telegramBotToken || !telegramChatId) {
+        alert('Please save Bot Token and Chat ID first.');
+        return;
+    }
+
+    settingsStatus.textContent = 'Restoring...';
+    settingsStatus.className = 'status-msg';
+
+    try {
+        // 1. Get Chat info to find Pinned Message
+        const chat = await getTelegramChat(telegramBotToken, telegramChatId);
+        if (!chat || !chat.pinned_message || !chat.pinned_message.document) {
+            throw new Error('No pinned backup file found in chat.');
+        }
+
+        // 2. Get File Path
+        const fileId = chat.pinned_message.document.file_id;
+        const file path = await getTelegramFile(telegramBotToken, fileId);
+        if (!file_path) throw new Error('Could not get file path.');
+
+        // 3. Download
+        const fileUrl = `https://api.telegram.org/file/bot${telegramBotToken}/${file_path}`;
+        const response = await fetch(fileUrl);
+        const jsonString = await response.text();
+
+        // 4. Import
+        const success = await Storage.importData(jsonString);
+        if (success) {
+            settingsStatus.textContent = 'Restore Complete! ✅';
+            settingsStatus.className = 'status-msg success';
+            await refreshData();
+        } else {
+            throw new Error('Import validation failed.');
+        }
+
+    } catch (e) {
+        console.error(e);
+        settingsStatus.textContent = `Restore Failed: ${e.message}`;
+        settingsStatus.className = 'status-msg error';
+    }
+});
+
+// ... (existing code)
+
+// -- Telegram API Helpers --
+async function sendTelegramDocument(token, chatId, blob, filename) {
+    const formData = new FormData();
+    formData.append('chat_id', chatId);
+    formData.append('document', blob, filename);
+    formData.append('caption', '📦 ReadLater Backup - Pin this message to restore from it later.');
+
+    const response = await fetch(`https://api.telegram.org/bot${token}/sendDocument`, {
+        method: 'POST',
+        body: formData
+    });
+    const data = await response.json();
+    return data.ok ? data.result : null;
+}
+
+async function pinTelegramMessage(token, chatId, messageId) {
+    const response = await fetch(`https://api.telegram.org/bot${token}/pinChatMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            chat_id: chatId,
+            message_id: messageId
+        })
+    });
+    const data = await response.json();
+    return data.ok;
+}
+
+async function getTelegramChat(token, chatId) {
+    const response = await fetch(`https://api.telegram.org/bot${token}/getChat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: chatId })
+    });
+    const data = await response.json();
+    return data.ok ? data.result : null;
+}
+
+async function getTelegramFile(token, fileId) {
+    const response = await fetch(`https://api.telegram.org/bot${token}/getFile`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ file_id: fileId })
+    });
+    const data = await response.json();
+    return data.ok ? data.result.file_path : null;
+}
+
 function escapeMarkdown(text) {
     // Only escape characters that break Telegram's Markdown parsing
     return text.replace(/[_*`\[\]]/g, '\\$&');

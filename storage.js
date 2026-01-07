@@ -135,6 +135,28 @@ const Storage = {
     }
     await this._saveLists(readingList, todoList);
   }
+    // -- Data Sync --
+  static async exportData() {
+    const data = await chrome.storage.local.get(null);
+    return JSON.stringify(data);
+  }
+
+  static async importData(jsonString) {
+    try {
+      const data = JSON.parse(jsonString);
+      if (!data || typeof data !== 'object') throw new Error('Invalid JSON');
+
+      // Basic validation
+      if (!data.readingList && !data.todoList) throw new Error('No recognized data found');
+
+      await chrome.storage.local.clear();
+      await chrome.storage.local.set(data);
+      return true;
+    } catch (e) {
+      console.error('Import failed', e);
+      return false;
+    }
+  }
 };
 
 // Export for usage in modules (if using checking) or just global in non-module context
