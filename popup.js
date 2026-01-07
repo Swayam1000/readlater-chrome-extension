@@ -817,39 +817,73 @@ btnBackup.addEventListener('click', async () => {
     }
 });
 
+// -- Logger --
+function uiLog(msg) {
+    console.log(msg);
+    const logEl = document.getElementById('debug-log');
+    if (logEl) {
+        logEl.textContent += `[${new Date().toLocaleTimeString()}] ${msg}\n`;
+        logEl.scrollTop = logEl.scrollHeight;
+    }
+}
+document.getElementById('btn-toggle-logs')?.addEventListener('click', () => {
+    const logEl = document.getElementById('debug-log');
+    if (logEl.style.display === 'none') {
+        logEl.style.display = 'block';
+    } else {
+        logEl.style.display = 'none';
+    }
+});
+
 // Restore from Telegram
 btnRestore.addEventListener('click', async () => {
-    if (!confirm('Restore data from Telegram? This will OVERWRITE your current local data using the Pinned Message in your chat.')) return;
+    if (!confirm('Restore data? (Check logs if fails)')) return;
 
     const { telegramBotToken, telegramChatId } = await chrome.storage.local.get(['telegramBotToken', 'telegramChatId']);
+    uiLog(`Starting Restore. Token present: ${!!telegramBotToken}, ChatID: ${telegramChatId}`);
+
     if (!telegramBotToken || !telegramChatId) {
+        uiLog('Error: Missing Token/ID');
         alert('Please save Bot Token and Chat ID first.');
         return;
     }
 
-    settingsStatus.textContent = 'Restoring...';
+    settingsStatus.textContent = 'Restoring... (See logs)';
     settingsStatus.className = 'status-msg';
 
     try {
-        // 1. Get Chat info to find Pinned Message
+        // 1. Get Chat info
+        uiLog('Step 1: Fetching Chat Info...');
         const chat = await getTelegramChat(telegramBotToken, telegramChatId);
+        uiLog(`Chat info received: ${JSON.stringify(chat)}`);
+
         if (!chat) throw new Error('Could not access Telegram Chat. Check ID/Token.');
-        if (!chat.pinned_message) throw new Error('No Pinned Message found in this chat. Please Backup first!');
+        if (!chat.pinned_message) throw new Error('No Pinned Message found in this chat.');
         if (!chat.pinned_message.document) throw new Error('Pinned message is not a file.');
 
         // 2. Get File Path
+        uiLog('Step 2: Getting File Path...');
         const fileId = chat.pinned_message.document.file_id;
         const file_path = await getTelegramFile(telegramBotToken, fileId);
+        uiLog(`File path received: ${file_path}`);
+
         if (!file_path) throw new Error('Could not get file path.');
 
         // 3. Download
+        uiLog('Step 3: Downloading File...');
         const fileUrl = `https://api.telegram.org/file/bot${telegramBotToken}/${file_path}`;
         const response = await fetch(fileUrl);
+        uiLog(`Download response: ${response.status} ${response.statusText}`);
+
+        if (!response.ok) throw new Error(`Download HTTP Error: ${response.status}`);
+
         const jsonString = await response.text();
+        uiLog(`File downloaded. Size: ${jsonString.length} chars`);
 
         // 4. Import
         const success = await Storage.importData(jsonString);
         if (success) {
+            uiLog('Restore Complete! Refreshing data...');
             settingsStatus.textContent = 'Restore Complete! ✅';
             settingsStatus.className = 'status-msg success';
             await refreshData();
@@ -858,11 +892,11 @@ btnRestore.addEventListener('click', async () => {
         }
 
     } catch (e) {
-        console.error(e);
-        const errorMsg = `Restore Failed: ${e.message}`;
-        settingsStatus.textContent = errorMsg;
+        uiLog(`ERROR: ${e.message}`);
+        settingsStatus.textContent = 'Failed. Check Debug Logs.';
         settingsStatus.className = 'status-msg error';
-        alert(errorMsg); // Force user attention
+        // Also show logs automatically on error
+        document.getElementById('debug-log').style.display = 'block';
     }
 });
 
