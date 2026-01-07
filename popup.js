@@ -57,6 +57,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     await updateTodoTagSelector();
     await updateFilterDropdowns(); // Init filters
     await refreshData();
+    uiLog('Popup Initialized.');
 });
 
 function setupTabs() {
@@ -837,7 +838,11 @@ document.getElementById('btn-toggle-logs')?.addEventListener('click', () => {
 
 // Restore from Telegram
 btnRestore.addEventListener('click', async () => {
-    if (!confirm('Restore data? (Check logs if fails)')) return;
+    uiLog('Restore Button Clicked.');
+    if (!confirm('Restore data? (Check logs if fails)')) {
+        uiLog('Restore Cancelled by user.');
+        return;
+    }
 
     const { telegramBotToken, telegramChatId } = await chrome.storage.local.get(['telegramBotToken', 'telegramChatId']);
     uiLog(`Starting Restore. Token present: ${!!telegramBotToken}, ChatID: ${telegramChatId}`);
