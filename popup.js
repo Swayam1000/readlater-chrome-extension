@@ -259,6 +259,14 @@ function setupEventListeners() {
     btnCloseOverlay.addEventListener('click', closeOverlay);
     btnCloseTagOverlay.addEventListener('click', closeTagOverlay);
 
+    // Close on Click Outside
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) closeOverlay();
+    });
+    tagOverlay.addEventListener('click', (e) => {
+        if (e.target === tagOverlay) closeTagOverlay();
+    });
+
     // Filter Change Listeners
     if (readingFilter) {
         readingFilter.addEventListener('change', () => {
