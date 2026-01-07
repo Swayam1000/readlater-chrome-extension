@@ -3,6 +3,9 @@
 // -- State --
 let currentTab = 'reading'; // 'reading' | 'todos'
 let activeReadingList = [];
+let activeTodo = [];
+let currentReadFilter = "";
+let currentTodoFilter = ""; // State for filters
 let activeTodoList = [];
 let linkingState = null; // { sourceId, sourceType: 'reading'|'todo' }
 
@@ -52,6 +55,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupEventListeners();
     await updateMainTagSelector();
     await updateTodoTagSelector();
+    await updateFilterDropdowns(); // Init filters
     await refreshData();
 });
 
@@ -132,97 +136,114 @@ function setupEventListeners() {
             renderSettingsTags();
             // Also need to refresh selectors if they are visible, but they usually aren't.
             await updateMainTagSelector();
+            await updateTodoTagSelector();
+            await updateFilterDropdowns();
         }
+    }
     });
 
-    // Save Current Tab
-    btnSaveCurrent.addEventListener('click', async () => {
-        // Get current tab info
-        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-        const tagSelector = document.getElementById('tag-selector');
-        const selectedTag = tagSelector.value;
+// Save Current Tab
+btnSaveCurrent.addEventListener('click', async () => {
+    // Get current tab info
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const tagSelector = document.getElementById('tag-selector');
+    const selectedTag = tagSelector.value;
 
-        if (tab) {
-            await Storage.addReadingItem({
-                url: tab.url,
-                title: tab.title,
-                favIconUrl: tab.favIconUrl || '',
-                tags: selectedTag ? [selectedTag] : []
-            });
+    if (tab) {
+        await Storage.addReadingItem({
+            url: tab.url,
+            title: tab.title,
+            favIconUrl: tab.favIconUrl || '',
+            tags: selectedTag ? [selectedTag] : []
+        });
 
-            // Sync if Must-read or Video to watch
-            if (selectedTag === 'Must-read' || selectedTag === 'Video to watch') {
-                await checkAndSyncToTelegram(tab.title, tab.url, selectedTag);
-            }
-
-            tagSelector.value = ""; // Reset
-            await refreshData();
+        // Sync if Must-read or Video to watch
+        if (selectedTag === 'Must-read' || selectedTag === 'Video to watch') {
+            await checkAndSyncToTelegram(tab.title, tab.url, selectedTag);
         }
+
+        tagSelector.value = ""; // Reset
+        await refreshData();
+    }
+});
+
+// Save Todo (Current Tab)
+btnSaveTodo.addEventListener('click', async () => {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const selectedTag = todoTagSelector.value;
+    const note = todoNoteInput.value.trim();
+    const manualTitle = document.getElementById('todo-input').value.trim();
+
+    // If manual title is present, prioritize it? Or should this button ONLY be for current tab?
+    // User asked for "another button" for manual add.
+    // So this button remains strictly for "Save Current Tab".
+
+    if (tab) {
+        await Storage.addTodoItem({
+            title: tab.title,
+            description: note,
+            url: tab.url,
+            tags: selectedTag ? [selectedTag] : []
+        });
+
+        todoTagSelector.value = '';
+        todoNoteInput.value = '';
+        document.getElementById('todo-input').value = ''; // Clear manual input just in case
+        await refreshData();
+    }
+});
+
+// Add Manual Todo
+const btnAddManualTodo = document.getElementById('btn-add-manual-todo');
+const todoManualInput = document.getElementById('todo-input');
+
+const addManualTodoHandler = async () => {
+    const title = todoManualInput.value.trim();
+    const selectedTag = todoTagSelector.value;
+    const note = todoNoteInput.value.trim();
+
+    if (title) {
+        await Storage.addTodoItem({
+            title: title,
+            description: note,
+            url: '', // No URL for manual task
+            tags: selectedTag ? [selectedTag] : []
+        });
+
+        todoManualInput.value = '';
+        todoTagSelector.value = '';
+        todoNoteInput.value = '';
+        await refreshData();
+    } else {
+        // Highlight input if empty
+        todoManualInput.focus();
+        todoManualInput.style.borderColor = 'red';
+        setTimeout(() => todoManualInput.style.borderColor = '', 1000);
+    }
+};
+
+btnAddManualTodo.addEventListener('click', addManualTodoHandler);
+todoManualInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') addManualTodoHandler();
+});
+
+// Close Overlay
+btnCloseOverlay.addEventListener('click', closeOverlay);
+btnCloseTagOverlay.addEventListener('click', closeTagOverlay);
+
+// Filter Change Listeners
+if (readingFilter) {
+    readingFilter.addEventListener('change', () => {
+        currentReadFilter = readingFilter.value;
+        renderReadingList(activeReadingList);
     });
-
-    // Save Todo (Current Tab)
-    btnSaveTodo.addEventListener('click', async () => {
-        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-        const selectedTag = todoTagSelector.value;
-        const note = todoNoteInput.value.trim();
-        const manualTitle = document.getElementById('todo-input').value.trim();
-
-        // If manual title is present, prioritize it? Or should this button ONLY be for current tab?
-        // User asked for "another button" for manual add.
-        // So this button remains strictly for "Save Current Tab".
-
-        if (tab) {
-            await Storage.addTodoItem({
-                title: tab.title,
-                description: note,
-                url: tab.url,
-                tags: selectedTag ? [selectedTag] : []
-            });
-
-            todoTagSelector.value = '';
-            todoNoteInput.value = '';
-            document.getElementById('todo-input').value = ''; // Clear manual input just in case
-            await refreshData();
-        }
+}
+if (todoFilter) {
+    todoFilter.addEventListener('change', () => {
+        currentTodoFilter = todoFilter.value;
+        renderTodoList(activeTodoList);
     });
-
-    // Add Manual Todo
-    const btnAddManualTodo = document.getElementById('btn-add-manual-todo');
-    const todoManualInput = document.getElementById('todo-input');
-
-    const addManualTodoHandler = async () => {
-        const title = todoManualInput.value.trim();
-        const selectedTag = todoTagSelector.value;
-        const note = todoNoteInput.value.trim();
-
-        if (title) {
-            await Storage.addTodoItem({
-                title: title,
-                description: note,
-                url: '', // No URL for manual task
-                tags: selectedTag ? [selectedTag] : []
-            });
-
-            todoManualInput.value = '';
-            todoTagSelector.value = '';
-            todoNoteInput.value = '';
-            await refreshData();
-        } else {
-            // Highlight input if empty
-            todoManualInput.focus();
-            todoManualInput.style.borderColor = 'red';
-            setTimeout(() => todoManualInput.style.borderColor = '', 1000);
-        }
-    };
-
-    btnAddManualTodo.addEventListener('click', addManualTodoHandler);
-    todoManualInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') addManualTodoHandler();
-    });
-
-    // Close Overlay
-    btnCloseOverlay.addEventListener('click', closeOverlay);
-    btnCloseTagOverlay.addEventListener('click', closeTagOverlay);
+}
 }
 
 // -- Rendering --
@@ -239,11 +260,28 @@ function renderReadingList(list) {
     const container = lists.reading;
     container.innerHTML = '';
 
-    if (list.length === 0) {
-        emptyStates.reading.classList.remove('hidden');
+    // Apply Filter
+    let displayList = list;
+    if (currentReadFilter) {
+        displayList = list.filter(item => (item.tags || []).includes(currentReadFilter));
+    }
+
+    if (displayList.length === 0) {
+        // Only show empty state if real list is empty, OR if filter returns empty? 
+        // Better to separate "No items" vs "No items matches filter". 
+        // For simplicity, just show empty state or a specific "No matches" msg.
+        container.innerHTML = '<div class="empty-state"><p>No items found.</p></div>';
+        // Keep emptyStates.reading hidden unless filtered list is effectively empty? 
+        // Actually simplest is just:
+        emptyStates.reading.classList.toggle('hidden', list.length > 0); // Logic for global empty
+        if (list.length > 0 && displayList.length === 0) {
+            container.innerHTML = '<div class="empty-filter" style="text-align:center; padding:20px; color:#666;">No items with this tag.</div>';
+        } else if (list.length === 0) {
+            emptyStates.reading.classList.remove('hidden');
+        }
     } else {
         emptyStates.reading.classList.add('hidden');
-        list.forEach(item => {
+        displayList.forEach(item => {
             const li = document.createElement('li');
             li.className = 'item-card';
 
@@ -306,11 +344,21 @@ function renderTodoList(list) {
     const container = lists.todos;
     container.innerHTML = '';
 
-    if (list.length === 0) {
-        emptyStates.todos.classList.remove('hidden');
+    // Apply Filter
+    let displayList = list;
+    if (currentTodoFilter) {
+        displayList = list.filter(item => (item.tags || []).includes(currentTodoFilter));
+    }
+
+    if (displayList.length === 0) {
+        if (list.length > 0) {
+            container.innerHTML = '<div class="empty-filter" style="text-align:center; padding:20px; color:#666;">No tasks with this tag.</div>';
+        } else {
+            emptyStates.todos.classList.remove('hidden');
+        }
     } else {
         emptyStates.todos.classList.add('hidden');
-        list.forEach(item => {
+        displayList.forEach(item => {
             const li = document.createElement('li');
             li.className = 'item-card';
 
@@ -628,6 +676,27 @@ async function updateTodoTagSelector() {
         todoTagSelector.appendChild(option);
     });
     todoTagSelector.value = currentVal;
+}
+
+// Filter Dropdowns
+const readingFilter = document.getElementById('reading-filter');
+const todoFilter = document.getElementById('todo-filter');
+
+async function updateFilterDropdowns() {
+    if (!readingFilter || !todoFilter) return;
+    // Don't reset value if user already selected something
+    const currentReadVal = readingFilter.value;
+    const currentTodoVal = todoFilter.value;
+
+    const html = '<option value="">All Tags</option>' + (await getAvailableTags()).map(tag =>
+        `<option value="${tag}">${tag}</option>`
+    ).join('');
+
+    readingFilter.innerHTML = html;
+    todoFilter.innerHTML = html;
+
+    readingFilter.value = currentReadVal;
+    todoFilter.value = currentTodoVal;
 }
 // We need to call this when popup opens
 

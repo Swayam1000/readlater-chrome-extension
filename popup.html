@@ -78,60 +78,71 @@
             </select>
           </div>
         </div>
-        <ul id="reading-list" class="item-list"></ul>
-        <div id="reading-empty" class="empty-state hidden">
-          <p>No articles saved yet.</p>
-        </div>
-      </section>
+  </div>
+  <div class="filter-area" style="padding: 0 12px 8px 12px;">
+    <select id="reading-filter" class="tag-select" style="font-size:12px; padding:4px;">
+      <option value="">All Tags</option>
+    </select>
+  </div>
+  <ul id="reading-list" class="item-list"></ul>
+  <div id="reading-empty" class="empty-state hidden">
+    <p>No articles saved yet.</p>
+  </div>
+  </section>
 
-      <section id="view-todos" class="view">
-        <div class="input-area">
-          <input type="text" id="todo-input" placeholder="What needs to be done?"
-            style="margin-bottom:8px; width:100%; box-sizing:border-box;">
+  <section id="view-todos" class="view">
+    <div class="input-area">
+      <input type="text" id="todo-input" placeholder="What needs to be done?"
+        style="margin-bottom:8px; width:100%; box-sizing:border-box;">
 
-          <div class="todo-options">
-            <select id="todo-tag-selector" class="tag-select">
-              <option value="">Add Tag...</option>
-            </select>
-            <textarea id="todo-note-input" placeholder="Add a note (optional)..." rows="2"></textarea>
-          </div>
+      <div class="todo-options">
+        <select id="todo-tag-selector" class="tag-select">
+          <option value="">Add Tag...</option>
+        </select>
+        <textarea id="todo-note-input" placeholder="Add a note (optional)..." rows="2"></textarea>
+      </div>
 
-          <div class="action-buttons" style="display:flex; gap:8px; margin-top:8px;">
-            <button id="btn-save-todo" class="primary-btn" style="flex:1;">
-              <span class="icon">🔗</span> Save Tab
-            </button>
-            <button id="btn-add-manual-todo" class="secondary-btn"
-              style="flex:1; background:var(--bg-secondary); color:var(--text-primary); border:1px solid var(--border);">
-              <span class="icon">+</span> Add Task
-            </button>
-          </div>
-        </div>
-        <ul id="todo-list" class="item-list"></ul>
-        <div id="todo-empty" class="empty-state hidden">
-          <p>No tasks yet. Stay focused!</p>
-        </div>
-      </section>
-    </main>
-
-    <!-- Overlay for Linking (Hidden by default) -->
-    <div id="link-overlay" class="overlay hidden">
-      <div class="overlay-content">
-        <h3>Link to...</h3>
-        <ul id="link-candidates" class="item-list small"></ul>
-        <button id="btn-close-overlay">Cancel</button>
+      <div class="action-buttons" style="display:flex; gap:8px; margin-top:8px;">
+        <button id="btn-save-todo" class="primary-btn" style="flex:1;">
+          <span class="icon">🔗</span> Save Tab
+        </button>
+        <button id="btn-add-manual-todo" class="secondary-btn"
+          style="flex:1; background:var(--bg-secondary); color:var(--text-primary); border:1px solid var(--border);">
+          <span class="icon">+</span> Add Task
+        </button>
       </div>
     </div>
-
-    <!-- Overlay for Tags (Hidden by default) -->
-    <div id="tag-overlay" class="overlay hidden">
-      <div class="overlay-content">
-        <h3>Add Tag</h3>
-        <div id="tag-candidates" class="tags-list large-tags">
-          <!-- Dynamic -->
-        </div>
-        <button id="btn-close-tag-overlay" style="margin-top:12px;">Cancel</button>
-      </div>
+    <div class="filter-area" style="padding: 0 12px 8px 12px;">
+      <select id="todo-filter" class="tag-select" style="font-size:12px; padding:4px;">
+        <option value="">All Tags</option>
+      </select>
     </div>
+    <ul id="todo-list" class="item-list"></ul>
+    <div id="todo-empty" class="empty-state hidden">
+      <p>No tasks yet. Stay focused!</p>
+    </div>
+  </section>
+  </main>
+
+  <!-- Overlay for Linking (Hidden by default) -->
+  <div id="link-overlay" class="overlay hidden">
+    <div class="overlay-content">
+      <h3>Link to...</h3>
+      <ul id="link-candidates" class="item-list small"></ul>
+      <button id="btn-close-overlay">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Overlay for Tags (Hidden by default) -->
+  <div id="tag-overlay" class="overlay hidden">
+    <div class="overlay-content">
+      <h3>Add Tag</h3>
+      <div id="tag-candidates" class="tags-list large-tags">
+        <!-- Dynamic -->
+      </div>
+      <button id="btn-close-tag-overlay" style="margin-top:12px;">Cancel</button>
+    </div>
+  </div>
   </div>
   <script src="storage.js"></script>
   <script src="popup.js"></script>
