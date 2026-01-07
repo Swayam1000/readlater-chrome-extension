@@ -102,6 +102,34 @@ function setupEventListeners() {
         setTimeout(() => settingsStatus.textContent = '', 2000);
     });
 
+    // Paste Buttons
+    const btnPasteToken = document.getElementById('btn-paste-token');
+    const btnPasteChatId = document.getElementById('btn-paste-chatid');
+
+    if (btnPasteToken) {
+        btnPasteToken.addEventListener('click', async () => {
+            try {
+                const text = await navigator.clipboard.readText();
+                if (text) inputBotToken.value = text.trim();
+            } catch (err) {
+                console.error('Failed to read clipboard', err);
+                alert('Could not read clipboard. Please allow access if prompted.');
+            }
+        });
+    }
+
+    if (btnPasteChatId) {
+        btnPasteChatId.addEventListener('click', async () => {
+            try {
+                const text = await navigator.clipboard.readText();
+                if (text) inputChatId.value = text.trim();
+            } catch (err) {
+                console.error('Failed to read clipboard', err);
+                alert('Could not read clipboard. Please allow access if prompted.');
+            }
+        });
+    }
+
     // Test Connection
     btnTestConnection.addEventListener('click', async () => {
         const token = inputBotToken.value.trim();

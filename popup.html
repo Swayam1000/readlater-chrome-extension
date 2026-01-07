@@ -34,12 +34,20 @@
 
           <div class="form-group">
             <label for="tg-bot-token">Bot Token</label>
-            <input type="password" id="tg-bot-token" placeholder="123456:ABC-DEF..." />
+            <div style="display:flex; gap:4px;">
+              <input type="password" id="tg-bot-token" placeholder="123456:ABC-DEF..." />
+              <button id="btn-paste-token" class="secondary-btn" title="Paste from Clipboard"
+                style="padding:4px 8px;">📋</button>
+            </div>
           </div>
 
           <div class="form-group">
             <label for="tg-chat-id">Chat ID</label>
-            <input type="text" id="tg-chat-id" placeholder="@channel or 12345..." />
+            <div style="display:flex; gap:4px;">
+              <input type="text" id="tg-chat-id" placeholder="@channel or 12345..." />
+              <button id="btn-paste-chatid" class="secondary-btn" title="Paste from Clipboard"
+                style="padding:4px 8px;">📋</button>
+            </div>
           </div>
 
           <div class="inline-actions" style="display:flex; gap:8px; margin-bottom:8px;">

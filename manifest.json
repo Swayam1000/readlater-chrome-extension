@@ -3,13 +3,14 @@
   "name": "ReadLater + Todos",
   "version": "1.0",
   "description": "Save links, manage todos, and sync 'Must-read' items to Telegram. Local & Privacy-focused.",
+  "host_permissions": [
+    "https://api.telegram.org/*"
+  ],
   "permissions": [
     "storage",
     "activeTab",
-    "contextMenus"
-  ],
-  "host_permissions": [
-    "https://api.telegram.org/*"
+    "contextMenus",
+    "clipboardRead"
   ],
   "action": {
     "default_popup": "popup.html",
