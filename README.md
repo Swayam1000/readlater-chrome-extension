@@ -64,6 +64,32 @@ Sync your data between different browsers (e.g., Chrome, Brave, ChatGPT Atlas) u
 
 > **Note for Atlas Browser Users**: If you cannot copy/paste your token using keyboard shortcuts, use the **Paste 📋** button next to the input fields.
 
+### Convex Sync Setup (New)
+You can also sync via Convex HTTP Actions.
+
+This repo now includes ready Convex handlers:
+- `convex/http.ts` (`/backup`, `/restore`)
+- `convex/backups.ts`
+- `convex/schema.ts`
+
+1. Initialize/deploy Convex from this repo:
+```bash
+npx convex dev
+```
+
+2. Optional security key:
+- In Convex dashboard, add env var `CONVEX_SYNC_KEY=<your-secret>`
+- Put the same value in extension setting `Convex Sync Key`
+
+3. Open extension **Settings** and fill:
+- `Convex Backup URL`: `https://<your-deployment>.convex.site/backup`
+- `Convex Restore URL`: `https://<your-deployment>.convex.site/restore`
+- `Convex Sync Key`: same secret as above (or blank if not using one)
+
+4. Click **Save Settings**, then test:
+- **☁️ Backup to Convex**
+- **📥 Restore from Convex**
+
 ### 📱 Telegram Setup
 1.  Create a bot via [@BotFather](https://t.me/BotFather) and get the **API Token**.
 2.  Start a chat with your bot (or add it to a group/channel).

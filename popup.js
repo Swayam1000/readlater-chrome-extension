@@ -3,43 +3,63 @@
 // -- State --
 let currentTab = 'reading'; // 'reading' | 'todos'
 let activeReadingList = [];
+let activeCourseList = []; // New Course List
 let activeTodo = [];
 let currentReadFilter = "";
+let currentCourseFilter = ""; // Course filter
 let currentTodoFilter = ""; // State for filters
 let activeTodoList = [];
+let activeHistoryList = []; // Add history list
 let linkingState = null; // { sourceId, sourceType: 'reading'|'todo' }
 
 // -- DOM Elements --
 const tabBtns = document.querySelectorAll('.tab-btn');
 const views = {
     reading: document.getElementById('view-reading'),
+    course: document.getElementById('view-course'), // Add course view
     todos: document.getElementById('view-todos'),
+    history: document.getElementById('view-history'), // Add history view
     settings: document.getElementById('view-settings')
 };
 const lists = {
     reading: document.getElementById('reading-list'),
-    todos: document.getElementById('todo-list')
+    course: document.getElementById('course-list'), // Add course list
+    todos: document.getElementById('todo-list'),
+    history: document.getElementById('history-list') // Add history list
 };
 const emptyStates = {
     reading: document.getElementById('reading-empty'),
-    todos: document.getElementById('todo-empty')
+    course: document.getElementById('course-empty'), // Add course empty
+    todos: document.getElementById('todo-empty'),
+    history: document.getElementById('history-empty') // Add history empty
 };
 
 const btnSettings = document.getElementById('btn-settings');
 const btnSaveSettings = document.getElementById('btn-save-settings');
+const btnSaveConvexSettings = document.getElementById('btn-save-convex-settings');
 const btnTestConnection = document.getElementById('btn-test-connection');
 const inputBotToken = document.getElementById('tg-bot-token');
 const inputChatId = document.getElementById('tg-chat-id');
+const inputConvexBackupUrl = document.getElementById('convex-backup-url');
+const inputConvexRestoreUrl = document.getElementById('convex-restore-url');
+const inputConvexSyncKey = document.getElementById('convex-sync-key');
+const compactModeToggle = document.getElementById('compact-mode-toggle');
 const settingsStatus = document.getElementById('settings-status');
 
 const settingsTagsList = document.getElementById('settings-tags-list');
 const newTagInput = document.getElementById('new-tag-input');
 const btnAddTag = document.getElementById('btn-add-tag');
 
+// Course Elements
+const btnSaveCourse = document.getElementById('btn-save-course');
+// Reading Elements
 const btnSaveCurrent = document.getElementById('btn-save-current');
 const btnSaveTodo = document.getElementById('btn-save-todo');
 const todoTagSelector = document.getElementById('todo-tag-selector');
 const todoNoteInput = document.getElementById('todo-note-input');
+const todoDateInput = document.getElementById('todo-date-input');
+const todoUrgentInput = document.getElementById('todo-urgent-input');
+const todoImportantInput = document.getElementById('todo-important-input');
 
 const overlay = document.getElementById('link-overlay');
 const linkCandidates = document.getElementById('link-candidates');
@@ -53,6 +73,7 @@ const btnCloseTagOverlay = document.getElementById('btn-close-tag-overlay');
 document.addEventListener('DOMContentLoaded', async () => {
     setupTabs();
     setupEventListeners();
+    await loadUiPreferences();
     await updateMainTagSelector();
     await updateTodoTagSelector();
     await updateFilterDropdowns(); // Init filters
@@ -87,21 +108,30 @@ function setupTabs() {
 }
 
 function setupEventListeners() {
-    // Save Settings
-    btnSaveSettings.addEventListener('click', async () => {
+    const saveSettingsHandler = async () => {
         const token = inputBotToken.value.trim();
         const chatId = inputChatId.value.trim();
+        const convexBackupUrl = inputConvexBackupUrl.value.trim();
+        const convexRestoreUrl = inputConvexRestoreUrl.value.trim();
+        const convexSyncKey = inputConvexSyncKey.value.trim();
 
         await chrome.storage.local.set({
             telegramBotToken: token,
-            telegramChatId: chatId
+            telegramChatId: chatId,
+            convexBackupUrl,
+            convexRestoreUrl,
+            convexSyncKey,
+            uiCompactMode: compactModeToggle?.checked || false
         });
 
         settingsStatus.textContent = 'Saved!';
         settingsStatus.className = 'status-msg success';
-        settingsStatus.className = 'status-msg success';
         setTimeout(() => settingsStatus.textContent = '', 2000);
-    });
+    };
+
+    // Save Settings
+    btnSaveSettings.addEventListener('click', saveSettingsHandler);
+    btnSaveConvexSettings?.addEventListener('click', saveSettingsHandler);
 
     // Paste Buttons
     const btnPasteToken = document.getElementById('btn-paste-token');
@@ -145,13 +175,15 @@ function setupEventListeners() {
         settingsStatus.textContent = 'Testing...';
         settingsStatus.className = 'status-msg';
 
-        const success = await sendTelegramMessage(token, chatId, "✅ Connection successful! Your ReadLater extension is connected.");
+        const result = typeof window.sendTelegramMessage === 'function'
+            ? await window.sendTelegramMessage(token, chatId, "✅ Connection successful! Your ReadLater extension is connected.", true)
+            : { ok: false, error: 'Telegram sync module not loaded' };
 
-        if (success) {
+        if (result && result.ok) {
             settingsStatus.textContent = 'Success! Check your Telegram.';
             settingsStatus.className = 'status-msg success';
         } else {
-            settingsStatus.textContent = 'Failed. Check Token/ID.';
+            settingsStatus.textContent = `Failed: ${(result && result.error) ? result.error : 'Check Token/ID.'}`;
             settingsStatus.className = 'status-msg error';
         }
     });
@@ -170,6 +202,14 @@ function setupEventListeners() {
         }
     });
 
+    if (compactModeToggle) {
+        compactModeToggle.addEventListener('change', async () => {
+            const enabled = compactModeToggle.checked;
+            applyCompactMode(enabled);
+            await chrome.storage.local.set({ uiCompactMode: enabled });
+        });
+    }
+
     // Save Current Tab
     btnSaveCurrent.addEventListener('click', async () => {
         // Get current tab info
@@ -187,7 +227,9 @@ function setupEventListeners() {
 
             // Sync if Must-read or Video to watch
             if (selectedTag === 'Must-read' || selectedTag === 'Video to watch') {
-                await checkAndSyncToTelegram(tab.title, tab.url, selectedTag);
+                if (typeof window.checkAndSyncToTelegram === 'function') {
+                    await window.checkAndSyncToTelegram(tab.title, tab.url, selectedTag);
+                }
             }
 
             tagSelector.value = ""; // Reset
@@ -200,6 +242,9 @@ function setupEventListeners() {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
         const selectedTag = todoTagSelector.value;
         const note = todoNoteInput.value.trim();
+        const dueDate = todoDateInput.value;
+        const isUrgent = todoUrgentInput.checked;
+        const isImportant = todoImportantInput.checked;
         const manualTitle = document.getElementById('todo-input').value.trim();
 
         // If manual title is present, prioritize it? Or should this button ONLY be for current tab?
@@ -211,12 +256,19 @@ function setupEventListeners() {
                 title: tab.title,
                 description: note,
                 url: tab.url,
+                dueDate: dueDate,
+                isUrgent: isUrgent,
+                isImportant: isImportant,
                 tags: selectedTag ? [selectedTag] : []
             });
 
             todoTagSelector.value = '';
             todoNoteInput.value = '';
+            todoDateInput.value = '';
+            todoUrgentInput.checked = false;
+            todoImportantInput.checked = false;
             document.getElementById('todo-input').value = ''; // Clear manual input just in case
+            todoManualInput?.dispatchEvent(new Event('input'));
             await refreshData();
         }
     });
@@ -224,23 +276,41 @@ function setupEventListeners() {
     // Add Manual Todo
     const btnAddManualTodo = document.getElementById('btn-add-manual-todo');
     const todoManualInput = document.getElementById('todo-input');
+    const syncTodoActionPriority = () => {
+        const hasManualTitle = todoManualInput.value.trim().length > 0;
+        btnAddManualTodo.classList.toggle('primary-btn', hasManualTitle);
+        btnAddManualTodo.classList.toggle('secondary-btn', !hasManualTitle);
+        btnSaveTodo.classList.toggle('secondary-btn', hasManualTitle);
+        btnSaveTodo.classList.toggle('primary-btn', !hasManualTitle);
+    };
+    syncTodoActionPriority();
 
     const addManualTodoHandler = async () => {
         const title = todoManualInput.value.trim();
         const selectedTag = todoTagSelector.value;
         const note = todoNoteInput.value.trim();
+        const dueDate = todoDateInput.value;
+        const isUrgent = todoUrgentInput.checked;
+        const isImportant = todoImportantInput.checked;
 
         if (title) {
             await Storage.addTodoItem({
                 title: title,
                 description: note,
                 url: '', // No URL for manual task
+                dueDate: dueDate,
+                isUrgent: isUrgent,
+                isImportant: isImportant,
                 tags: selectedTag ? [selectedTag] : []
             });
 
             todoManualInput.value = '';
             todoTagSelector.value = '';
             todoNoteInput.value = '';
+            todoDateInput.value = '';
+            todoUrgentInput.checked = false;
+            todoImportantInput.checked = false;
+            syncTodoActionPriority();
             await refreshData();
         } else {
             // Highlight input if empty
@@ -251,9 +321,18 @@ function setupEventListeners() {
     };
 
     btnAddManualTodo.addEventListener('click', addManualTodoHandler);
+    todoManualInput.addEventListener('input', syncTodoActionPriority);
     todoManualInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') addManualTodoHandler();
     });
+
+    // Sync from Telegram
+    const btnSyncTelegram = document.getElementById('btn-sync-telegram');
+    if (btnSyncTelegram) {
+        btnSyncTelegram.addEventListener('click', async () => {
+            await syncTelegramTasksHandler();
+        });
+    }
 
     // Close Overlay
     btnCloseOverlay.addEventListener('click', closeOverlay);
@@ -280,201 +359,52 @@ function setupEventListeners() {
             renderTodoList(activeTodoList);
         });
     }
+
+    // Save Course (Current Tab)
+    if (btnSaveCourse) {
+        btnSaveCourse.addEventListener('click', async () => {
+            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+            const tagSelector = document.getElementById('course-tag-selector');
+            const selectedTag = tagSelector.value;
+
+            if (tab) {
+                await Storage.addCourseItem({
+                    url: tab.url,
+                    title: tab.title,
+                    favIconUrl: tab.favIconUrl || '',
+                    tags: selectedTag ? [selectedTag] : []
+                });
+
+                tagSelector.value = ""; // Reset
+                await refreshData();
+            }
+        });
+    }
+
+    // Course Filter
+    const courseFilter = document.getElementById('course-filter');
+    if (courseFilter) {
+        courseFilter.addEventListener('change', () => {
+            currentCourseFilter = courseFilter.value;
+            renderCourseList(activeCourseList);
+        });
+    }
 }
 
 // -- Rendering --
 async function refreshData() {
     const data = await Storage.loadData();
     activeReadingList = data.readingList;
+    activeCourseList = data.courseList || [];
     activeTodoList = data.todoList;
+    activeHistoryList = data.historyList || [];
 
     renderReadingList(activeReadingList);
+    renderCourseList(activeCourseList);
     renderTodoList(activeTodoList);
+    renderHistoryList();
 }
 
-function renderReadingList(list) {
-    const container = lists.reading;
-    container.innerHTML = '';
-
-    // Apply Filter
-    let displayList = list;
-    if (currentReadFilter) {
-        displayList = list.filter(item => (item.tags || []).includes(currentReadFilter));
-    }
-
-    // Sort by Priority
-    displayList.sort((a, b) => {
-        const aPriority = (a.tags || []).includes('Priority');
-        const bPriority = (b.tags || []).includes('Priority');
-        if (aPriority && !bPriority) return -1;
-        if (!aPriority && bPriority) return 1;
-        return 0; // Keep original order (newest first)
-    });
-
-    if (displayList.length === 0) {
-        // Only show empty state if real list is empty, OR if filter returns empty? 
-        // Better to separate "No items" vs "No items matches filter". 
-        // For simplicity, just show empty state or a specific "No matches" msg.
-        container.innerHTML = '<div class="empty-state"><p>No items found.</p></div>';
-        // Keep emptyStates.reading hidden unless filtered list is effectively empty? 
-        // Actually simplest is just:
-        emptyStates.reading.classList.toggle('hidden', list.length > 0); // Logic for global empty
-        if (list.length > 0 && displayList.length === 0) {
-            container.innerHTML = '<div class="empty-filter" style="text-align:center; padding:20px; color:#666;">No items with this tag.</div>';
-        } else if (list.length === 0) {
-            emptyStates.reading.classList.remove('hidden');
-        }
-    } else {
-        emptyStates.reading.classList.add('hidden');
-        displayList.forEach(item => {
-            const li = document.createElement('li');
-            li.className = 'item-card';
-
-            const linkedCounts = item.linkedTodoIds ? item.linkedTodoIds.length : 0;
-
-            // Generate Tags HTML
-            const tagsHtml = (item.tags || []).map(tag => {
-                const className = `tag-${tag.replace(/ /g, '-')}`;
-                return `<span class="item-tag ${className}">${escapeHtml(tag)}</span>`;
-            }).join('');
-
-            li.innerHTML = `
-        <div class="item-header">
-           <img src="${item.favIconUrl || 'icons/icon16.png'}" class="favicon" onerror="this.src='icons/icon16.png'">
-           <a href="${item.url}" target="_blank" class="item-title ${item.status === 'done' ? 'done' : ''}">${escapeHtml(item.title)}</a>
-           <div class="actions">
-             <button class="action-btn btn-toggle-status" title="Toggle Read Status">${item.status === 'done' ? '↩' : '✓'}</button>
-             <button class="action-btn btn-delete" title="Delete">×</button>
-           </div>
-        </div>
-        <div class="tags-list">
-            ${tagsHtml}
-            <button class="action-btn btn-add-tag" title="Add Tag" style="font-size:12px; margin-left:4px;">+</button>
-        </div>
-        <div class="item-meta">
-          <div class="link-badge" role="button">
-            <span>🔗 ${linkedCounts} linked</span>
-          </div>
-        </div>
-      `;
-
-            // Events
-            li.querySelector('.btn-toggle-status').addEventListener('click', async () => {
-                const newStatus = item.status === 'done' ? 'unread' : 'done';
-                await Storage.updateReadingItem(item.id, { status: newStatus });
-                await refreshData();
-            });
-
-            li.querySelector('.btn-delete').addEventListener('click', async () => {
-                if (confirm('Delete this item?')) {
-                    await Storage.deleteReadingItem(item.id);
-                    await refreshData();
-                }
-            });
-
-            li.querySelector('.link-badge').addEventListener('click', () => {
-                openLinkOverlay(item.id, 'reading');
-            });
-
-            li.querySelector('.btn-add-tag').addEventListener('click', () => {
-                openTagOverlay(item.id, 'reading'); // Pass type
-            });
-
-            container.appendChild(li);
-        });
-    }
-}
-
-function renderTodoList(list) {
-    const container = lists.todos;
-    container.innerHTML = '';
-
-    // Apply Filter
-    let displayList = list;
-    if (currentTodoFilter) {
-        displayList = list.filter(item => (item.tags || []).includes(currentTodoFilter));
-    }
-
-    // Sort by Priority
-    displayList.sort((a, b) => {
-        const aPriority = (a.tags || []).includes('Priority');
-        const bPriority = (b.tags || []).includes('Priority');
-        if (aPriority && !bPriority) return -1;
-        if (!aPriority && bPriority) return 1;
-        return 0; // Keep original order (newest first)
-    });
-
-    if (displayList.length === 0) {
-        if (list.length > 0) {
-            container.innerHTML = '<div class="empty-filter" style="text-align:center; padding:20px; color:#666;">No tasks with this tag.</div>';
-        } else {
-            emptyStates.todos.classList.remove('hidden');
-        }
-    } else {
-        emptyStates.todos.classList.add('hidden');
-        displayList.forEach(item => {
-            const li = document.createElement('li');
-            li.className = 'item-card';
-
-            const linkedCounts = item.linkedReadingIds ? item.linkedReadingIds.length : 0;
-
-            // Generate Tags HTML
-            const tagsHtml = (item.tags || []).map(tag => {
-                const className = getTagClass(tag);
-                return `<span class="item-tag ${className}">${escapeHtml(tag)}</span>`;
-            }).join('');
-
-            // Generate URL and Note HTML
-            const urlHtml = item.url ? `<div class="todo-url">🔗 <a href="${item.url}" target="_blank">${escapeHtml(new URL(item.url).hostname)}</a></div>` : '';
-            const noteHtml = item.description ? `<div class="todo-note">${escapeHtml(item.description)}</div>` : '';
-
-            li.innerHTML = `
-        <div class="item-header">
-           <a href="${item.url || '#'}" target="_blank" class="item-title ${item.status === 'done' ? 'done' : ''}">${escapeHtml(item.title)}</a>
-           <div class="actions">
-             <button class="action-btn btn-toggle-status" title="Toggle Done Status">${item.status === 'done' ? '↩' : '✓'}</button>
-             <button class="action-btn btn-delete" title="Delete">×</button>
-           </div>
-        </div>
-        ${urlHtml}
-        ${noteHtml}
-        <div class="tags-list">
-            ${tagsHtml}
-            <button class="action-btn btn-add-tag" title="Add Tag" style="font-size:12px; margin-left:4px;">+</button>
-        </div>
-        <div class="item-meta">
-          <div class="link-badge" role="button">
-            <span>🔗 ${linkedCounts} linked</span>
-          </div>
-        </div>
-      `;
-
-            // Events
-            li.querySelector('.btn-toggle-status').addEventListener('click', async () => {
-                const newStatus = item.status === 'done' ? 'open' : 'done';
-                await Storage.updateTodoItem(item.id, { status: newStatus });
-                await refreshData();
-            });
-
-            li.querySelector('.btn-delete').addEventListener('click', async () => {
-                if (confirm('Delete this task?')) {
-                    await Storage.deleteTodoItem(item.id);
-                    await refreshData();
-                }
-            });
-
-            li.querySelector('.link-badge').addEventListener('click', () => {
-                openLinkOverlay(item.id, 'todo');
-            });
-
-            li.querySelector('.btn-add-tag').addEventListener('click', () => {
-                openTagOverlay(item.id, 'todo'); // Pass type
-            });
-
-            container.appendChild(li);
-        });
-    }
-}
 
 // -- Linking Overlay Logic --
 function openLinkOverlay(sourceId, type) {
@@ -488,78 +418,6 @@ function closeOverlay() {
     linkingState = null;
 }
 
-function renderLinkCandidates() {
-    linkCandidates.innerHTML = '';
-    const { sourceId, type } = linkingState;
-
-    // If we are linking FROM a Reading Item, show Todos
-    // If we are linking FROM a Todo, show Reading Items
-    const candidates = type === 'reading' ? activeTodoList : activeReadingList;
-    const isTargetTodo = type === 'reading'; // Are the candidates todos?
-
-    // Find the source object to know what is already linked
-    let sourceItem;
-    if (type === 'reading') {
-        sourceItem = activeReadingList.find(i => i.id === sourceId);
-    } else {
-        sourceItem = activeTodoList.find(i => i.id === sourceId);
-    }
-
-    const alreadyLinkedIds = type === 'reading'
-        ? (sourceItem.linkedTodoIds || [])
-        : (sourceItem.linkedReadingIds || []);
-
-    candidates.forEach(item => {
-        const isLinked = alreadyLinkedIds.includes(item.id);
-        const li = document.createElement('li');
-        li.className = 'item-card small';
-        li.style.cursor = 'pointer';
-        if (isLinked) {
-            li.style.border = '2px solid var(--primary)';
-            li.style.backgroundColor = '#eff6ff';
-        }
-
-        li.innerHTML = `
-      <div class="item-header">
-        <span class="item-title">${escapeHtml(item.title)}</span>
-        ${isLinked ? '<span style="color:var(--primary); font-weight:bold;">Linked</span>' : ''}
-      </div>
-    `;
-
-        li.addEventListener('click', async () => {
-            if (isLinked) {
-                // Unlink
-                if (type === 'reading') {
-                    await Storage.unlinkItems(item.id, sourceId); // item is todo
-                } else {
-                    await Storage.unlinkItems(sourceId, item.id); // source is todo
-                }
-            } else {
-                // Link
-                if (type === 'reading') {
-                    await Storage.linkItems(item.id, sourceId);
-                } else {
-                    await Storage.linkItems(sourceId, item.id);
-                }
-            }
-            // Re-render and close (or keep open? Let's re-render to show state)
-            // refresh global data first
-            const data = await Storage.loadData();
-            activeReadingList = data.readingList;
-            activeTodoList = data.todoList;
-            // update source item reference
-            if (type === 'reading') {
-                sourceItem = activeReadingList.find(i => i.id === sourceId);
-            } else {
-                sourceItem = activeTodoList.find(i => i.id === sourceId);
-            }
-            renderLinkCandidates(); // Re-render this list
-            refreshData(); // Refresh bg list
-        });
-
-        linkCandidates.appendChild(li);
-    });
-}
 
 // -- Tag Overlay Logic --
 let taggingTargetId = null;
@@ -567,7 +425,7 @@ let taggingTargetType = null; // 'reading' or 'todo'
 
 // ... getAvailableTags etc ...
 async function getAvailableTags() {
-    const defaultTags = ["Must-read", "Priority", "Course to check", "Interesting Person", "Interesting Project", "Job to apply"];
+    const defaultTags = ["Must-read", "Priority", "Course to check", "Interesting Person", "Interesting Project", "Job to apply", "Must-do", "In Progress", "Completed"];
     const result = await chrome.storage.local.get(['allTags']);
 
     // Initialize if not present
@@ -615,92 +473,6 @@ function closeTagOverlay() {
     taggingTargetType = null;
 }
 
-async function renderTagCandidates(itemId) {
-    tagCandidates.innerHTML = '';
-    // Determine source list
-    const sourceList = taggingTargetType === 'todo' ? activeTodoList : activeReadingList;
-    const item = sourceList.find(i => i.id === itemId);
-
-    const existingTags = item ? (item.tags || []) : [];
-    const availableTags = await getAvailableTags();
-
-    availableTags.forEach(tag => {
-        const isSelected = existingTags.includes(tag);
-        const span = document.createElement('span');
-        span.className = `item-tag ${getTagClass(tag)}`;
-
-        if (isSelected) {
-            span.style.border = "1px solid var(--primary)";
-            span.style.backgroundColor = "#e0e7ff"; // Highlight selected
-        }
-        span.textContent = tag;
-
-        span.addEventListener('click', async () => {
-            if (item) {
-                let newTags;
-                if (isSelected) {
-                    // Remove tag
-                    newTags = existingTags.filter(t => t !== tag);
-                } else {
-                    // Add tag
-                    newTags = [...existingTags, tag];
-                    // Sync if adding Must-read or Video to watch
-                    if (tag === 'Must-read' || tag === 'Video to watch') {
-                        await checkAndSyncToTelegram(item.title, item.url || '(No URL)', tag);
-                    }
-                }
-
-                if (taggingTargetType === 'todo') {
-                    await Storage.updateTodoItem(itemId, { tags: newTags });
-                } else {
-                    await Storage.updateReadingItem(itemId, { tags: newTags });
-                }
-
-                await refreshData();
-                closeTagOverlay();
-            }
-        });
-
-        tagCandidates.appendChild(span);
-    });
-}
-
-async function renderSettingsTags() {
-    settingsTagsList.innerHTML = '';
-    const tags = await getAvailableTags();
-
-    tags.forEach(tag => {
-        const li = document.createElement('div');
-        li.className = 'item-tag';
-        li.classList.add(getTagClass(tag));
-
-        li.textContent = tag;
-
-        const btn = document.createElement('span');
-        btn.textContent = ' ×';
-        btn.style.cursor = 'pointer';
-        btn.style.fontWeight = 'bold';
-        btn.style.marginLeft = '4px';
-
-        // Hide delete for protected tags
-        if (tag === "Must-read") {
-            btn.style.display = 'none';
-        }
-
-        btn.addEventListener('click', async () => {
-            if (confirm(`Delete tag "${tag}"?`)) {
-                await removeCustomTag(tag);
-                renderSettingsTags();
-                await updateMainTagSelector();
-            }
-        });
-        li.appendChild(btn);
-
-        li.style.marginRight = '4px';
-        li.style.marginBottom = '4px';
-        settingsTagsList.appendChild(li);
-    });
-}
 
 // Update the main Tag Selector in the Save Tab view as well!
 async function updateMainTagSelector() {
@@ -757,231 +529,38 @@ async function updateFilterDropdowns() {
 
 // -- Telegram Sync Logic --
 async function loadSettings() {
-    const result = await chrome.storage.local.get(['telegramBotToken', 'telegramChatId']);
+    const result = await chrome.storage.local.get([
+        'telegramBotToken',
+        'telegramChatId',
+        'convexBackupUrl',
+        'convexRestoreUrl',
+        'convexSyncKey',
+        'uiCompactMode'
+    ]);
     inputBotToken.value = result.telegramBotToken || '';
     inputChatId.value = result.telegramChatId || '';
-}
-
-async function checkAndSyncToTelegram(title, url, tag = 'Must-read') {
-    const { telegramBotToken, telegramChatId } = await chrome.storage.local.get(['telegramBotToken', 'telegramChatId']);
-
-    if (!telegramBotToken || !telegramChatId) {
-        console.log('Telegram sync skipped: Missing credentials');
-        return;
+    inputConvexBackupUrl.value = result.convexBackupUrl || '';
+    inputConvexRestoreUrl.value = result.convexRestoreUrl || '';
+    inputConvexSyncKey.value = result.convexSyncKey || '';
+    if (compactModeToggle) {
+        compactModeToggle.checked = !!result.uiCompactMode;
     }
-
-    // Choose emoji based on tag
-    const emoji = tag === 'Video to watch' ? '🎬' : '📚';
-    const message = `${emoji} *${escapeMarkdown(tag)}*\n\n${escapeMarkdown(title)}\n${url}`;
-    await sendTelegramMessage(telegramBotToken, telegramChatId, message);
+    applyCompactMode(!!result.uiCompactMode);
 }
 
-async function sendTelegramMessage(token, chatId, text) {
-    const apiUrl = `https://api.telegram.org/bot${token}/sendMessage`;
-    try {
-        const response = await fetch(apiUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                chat_id: chatId,
-                text: text,
-                parse_mode: 'Markdown'
-            })
-        });
-
-        const data = await response.json();
-        if (!data.ok) {
-            console.error('Telegram API Error:', data);
-            return false;
-        }
-        return true;
-    } catch (e) {
-        console.error('Telegram sync failed', e);
-        return false;
+async function loadUiPreferences() {
+    const result = await chrome.storage.local.get(['uiCompactMode']);
+    const isCompact = !!result.uiCompactMode;
+    if (compactModeToggle) {
+        compactModeToggle.checked = isCompact;
     }
+    applyCompactMode(isCompact);
 }
 
-const btnBackup = document.getElementById('btn-backup');
-const btnRestore = document.getElementById('btn-restore');
-
-// ... (existing code)
-
-// Backup to Telegram
-btnBackup.addEventListener('click', async () => {
-    if (!confirm('Backup current data to Telegram? This will PIN the backup file in your chat. Ensure your Bot is an Admin if using a Channel.')) return;
-
-    const { telegramBotToken, telegramChatId } = await chrome.storage.local.get(['telegramBotToken', 'telegramChatId']);
-    if (!telegramBotToken || !telegramChatId) {
-        alert('Please save Bot Token and Chat ID first.');
-        return;
-    }
-
-    settingsStatus.textContent = 'Backing up...';
-    settingsStatus.className = 'status-msg';
-
-    try {
-        const jsonString = await Storage.exportData();
-        const blob = new Blob([jsonString], { type: 'application/json' });
-        const filename = `readlater_backup_${new Date().toISOString().slice(0, 10)}.json`;
-
-        const message = await sendTelegramDocument(telegramBotToken, telegramChatId, blob, filename);
-        if (message && message.message_id) {
-            const pinned = await pinTelegramMessage(telegramBotToken, telegramChatId, message.message_id);
-            if (pinned) {
-                settingsStatus.textContent = 'Backup Pinned! ✅';
-                settingsStatus.className = 'status-msg success';
-            } else {
-                settingsStatus.textContent = 'Uploaded, but Pin failed. (Bot needs Admin?)';
-                settingsStatus.className = 'status-msg warning';
-            }
-        } else {
-            throw new Error('Upload failed');
-        }
-    } catch (e) {
-        console.error(e);
-        settingsStatus.textContent = 'Backup Failed ❌';
-        settingsStatus.className = 'status-msg error';
-    }
-});
-
-// -- Logger --
-function uiLog(msg) {
-    console.log(msg);
-    const logEl = document.getElementById('debug-log');
-    if (logEl) {
-        logEl.textContent += `[${new Date().toLocaleTimeString()}] ${msg}\n`;
-        logEl.scrollTop = logEl.scrollHeight;
-    }
-}
-document.getElementById('btn-toggle-logs')?.addEventListener('click', () => {
-    const logEl = document.getElementById('debug-log');
-    if (logEl.style.display === 'none') {
-        logEl.style.display = 'block';
-    } else {
-        logEl.style.display = 'none';
-    }
-});
-
-// Restore from Telegram
-btnRestore.addEventListener('click', async () => {
-    uiLog('Restore Button Clicked. Starting...');
-    // Removed confirm() to debug if it was blocking Atlas
-
-    const { telegramBotToken, telegramChatId } = await chrome.storage.local.get(['telegramBotToken', 'telegramChatId']);
-    uiLog(`Starting Restore. Token present: ${!!telegramBotToken}, ChatID: ${telegramChatId}`);
-
-    if (!telegramBotToken || !telegramChatId) {
-        uiLog('Error: Missing Token/ID');
-        alert('Please save Bot Token and Chat ID first.');
-        return;
-    }
-
-    settingsStatus.textContent = 'Restoring... (See logs)';
-    settingsStatus.className = 'status-msg';
-
-    try {
-        // 1. Get Chat info
-        uiLog('Step 1: Fetching Chat Info...');
-        const chat = await getTelegramChat(telegramBotToken, telegramChatId);
-        uiLog(`Chat info received: ${JSON.stringify(chat)}`);
-
-        if (!chat) throw new Error('Could not access Telegram Chat. Check ID/Token.');
-        if (!chat.pinned_message) throw new Error('No Pinned Message found in this chat.');
-        if (!chat.pinned_message.document) throw new Error('Pinned message is not a file.');
-
-        // 2. Get File Path
-        uiLog('Step 2: Getting File Path...');
-        const fileId = chat.pinned_message.document.file_id;
-        const file_path = await getTelegramFile(telegramBotToken, fileId);
-        uiLog(`File path received: ${file_path}`);
-
-        if (!file_path) throw new Error('Could not get file path.');
-
-        // 3. Download
-        uiLog('Step 3: Downloading File...');
-        const fileUrl = `https://api.telegram.org/file/bot${telegramBotToken}/${file_path}`;
-        const response = await fetch(fileUrl);
-        uiLog(`Download response: ${response.status} ${response.statusText}`);
-
-        if (!response.ok) throw new Error(`Download HTTP Error: ${response.status}`);
-
-        const jsonString = await response.text();
-        uiLog(`File downloaded. Size: ${jsonString.length} chars`);
-
-        // 4. Import
-        const success = await Storage.importData(jsonString);
-        if (success) {
-            uiLog('Restore Complete! Refreshing data...');
-            settingsStatus.textContent = 'Restore Complete! ✅';
-            settingsStatus.className = 'status-msg success';
-            await refreshData();
-        } else {
-            throw new Error('Import validation failed.');
-        }
-
-    } catch (e) {
-        uiLog(`ERROR: ${e.message}`);
-        settingsStatus.textContent = 'Failed. Check Debug Logs.';
-        settingsStatus.className = 'status-msg error';
-        // Also show logs automatically on error
-        document.getElementById('debug-log').style.display = 'block';
-    }
-});
-
-// ... (existing code)
-
-// -- Telegram API Helpers --
-async function sendTelegramDocument(token, chatId, blob, filename) {
-    const formData = new FormData();
-    formData.append('chat_id', chatId);
-    formData.append('document', blob, filename);
-    formData.append('caption', '📦 ReadLater Backup - Pin this message to restore from it later.');
-
-    const response = await fetch(`https://api.telegram.org/bot${token}/sendDocument`, {
-        method: 'POST',
-        body: formData
-    });
-    const data = await response.json();
-    return data.ok ? data.result : null;
+function applyCompactMode(enabled) {
+    document.body.classList.toggle('density-compact', enabled);
 }
 
-async function pinTelegramMessage(token, chatId, messageId) {
-    const response = await fetch(`https://api.telegram.org/bot${token}/pinChatMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            chat_id: chatId,
-            message_id: messageId
-        })
-    });
-    const data = await response.json();
-    return data.ok;
-}
-
-async function getTelegramChat(token, chatId) {
-    const response = await fetch(`https://api.telegram.org/bot${token}/getChat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chat_id: chatId })
-    });
-    const data = await response.json();
-    return data.ok ? data.result : null;
-}
-
-async function getTelegramFile(token, fileId) {
-    const response = await fetch(`https://api.telegram.org/bot${token}/getFile`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ file_id: fileId })
-    });
-    const data = await response.json();
-    return data.ok ? data.result.file_path : null;
-}
-
-function escapeMarkdown(text) {
-    // Only escape characters that break Telegram's Markdown parsing
-    return text.replace(/[_*`\[\]]/g, '\\$&');
-}
 
 function escapeHtml(text) {
     if (!text) return '';
@@ -992,6 +571,7 @@ function escapeHtml(text) {
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
 }
+
 
 /* Helper to generate consistent color class for any tag string */
 function getTagClass(tagName) {

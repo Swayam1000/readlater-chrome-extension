@@ -21,71 +21,126 @@
     </header>
 
     <div class="tabs">
-      <button class="tab-btn active" data-tab="reading">Reading</button>
-      <button class="tab-btn" data-tab="todos">Todos</button>
+      <button class="tab-btn active" data-tab="reading" title="Reading Queue">
+        <span class="tab-icon">📚</span>
+        <span class="tab-label">Read</span>
+      </button>
+      <button class="tab-btn" data-tab="course" title="Learning Queue">
+        <span class="tab-icon">🎓</span>
+        <span class="tab-label">Learn</span>
+      </button>
+      <button class="tab-btn" data-tab="todos" title="Task Queue">
+        <span class="tab-icon">✅</span>
+        <span class="tab-label">Tasks</span>
+      </button>
+      <button class="tab-btn" data-tab="history" title="Activity History">
+        <span class="tab-icon">🕘</span>
+        <span class="tab-label">History</span>
+      </button>
     </div>
 
     <main>
       <!-- Settings View -->
       <section id="view-settings" class="view">
         <div class="settings-container">
-          <h3>Telegram Sync</h3>
-          <p class="hint">Sync "Must-read" items to Telegram.</p>
+          <details class="settings-panel" open>
+            <summary>Telegram Sync</summary>
+            <div class="settings-panel-body">
+              <p class="hint">Sync "Must-read" items to Telegram.</p>
 
-          <div class="form-group">
-            <label for="tg-bot-token">Bot Token</label>
-            <div style="display:flex; gap:4px;">
-              <input type="password" id="tg-bot-token" placeholder="123456:ABC-DEF..." />
-              <button id="btn-paste-token" class="secondary-btn" title="Paste from Clipboard"
-                style="padding:4px 8px;">📋</button>
+              <div class="form-group">
+                <label for="tg-bot-token">Bot Token</label>
+                <div class="form-row">
+                  <input type="password" id="tg-bot-token" placeholder="123456:ABC-DEF..." />
+                  <button id="btn-paste-token" class="secondary-btn" title="Paste from Clipboard">📋</button>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="tg-chat-id">Chat ID</label>
+                <div class="form-row">
+                  <input type="text" id="tg-chat-id" placeholder="@channel or 12345..." />
+                  <button id="btn-paste-chatid" class="secondary-btn" title="Paste from Clipboard">📋</button>
+                </div>
+              </div>
+
+              <div class="inline-actions">
+                <button id="btn-test-connection" class="secondary-btn full-width">Test Connection</button>
+                <button id="btn-save-settings" class="primary-btn full-width">Save Settings</button>
+              </div>
+
+              <div class="divider"></div>
+
+              <p class="hint">Backup your data to your Telegram Chat and restore it on another device.</p>
+              <div class="inline-actions">
+                <button id="btn-backup" class="secondary-btn full-width">
+                  ☁️ Backup to TG
+                </button>
+                <button id="btn-restore" class="secondary-btn full-width">
+                  📥 Restore from TG
+                </button>
+              </div>
             </div>
-          </div>
+          </details>
 
-          <div class="form-group">
-            <label for="tg-chat-id">Chat ID</label>
-            <div style="display:flex; gap:4px;">
-              <input type="text" id="tg-chat-id" placeholder="@channel or 12345..." />
-              <button id="btn-paste-chatid" class="secondary-btn" title="Paste from Clipboard"
-                style="padding:4px 8px;">📋</button>
+          <details class="settings-panel">
+            <summary>Convex Settings</summary>
+            <div class="settings-panel-body">
+              <div class="form-group">
+                <label for="convex-backup-url">Convex Backup URL</label>
+                <input type="text" id="convex-backup-url" placeholder="https://<deployment>.convex.site/backup" />
+              </div>
+
+              <div class="form-group">
+                <label for="convex-restore-url">Convex Restore URL</label>
+                <input type="text" id="convex-restore-url" placeholder="https://<deployment>.convex.site/restore" />
+              </div>
+
+              <div class="form-group">
+                <label for="convex-sync-key">Convex Sync Key (optional)</label>
+                <input type="password" id="convex-sync-key" placeholder="Shared secret for your HTTP action" />
+              </div>
+
+              <div class="inline-actions">
+                <button id="btn-save-convex-settings" class="primary-btn full-width">
+                  Save Convex Settings
+                </button>
+                <button id="btn-convex-backup" class="secondary-btn full-width">
+                  ☁️ Backup to Convex
+                </button>
+                <button id="btn-convex-restore" class="secondary-btn full-width">
+                  📥 Restore from Convex
+                </button>
+              </div>
             </div>
-          </div>
+          </details>
 
-          <div class="inline-actions" style="display:flex; gap:8px; margin-bottom:8px;">
-            <button id="btn-test-connection" class="secondary-btn full-width"
-              style="background:#e2e8f0; color:#0f172a;">Test Connection</button>
-            <button id="btn-save-settings" class="primary-btn full-width">Save Settings</button>
-          </div>
-
-          <div class="divider" style="height:1px; background:var(--border); margin:16px 0;"></div>
-
-          <h3>Cloud Sync (Backup & Restore)</h3>
-          <p class="hint">Backup your data to your Telegram Chat and restore it on another device.</p>
-          <div class="inline-actions" style="display:flex; gap:8px; margin-bottom:8px;">
-            <button id="btn-backup" class="secondary-btn full-width" style="background:#e0f2fe; color:#0369a1;">
-              ☁️ Backup to TG
-            </button>
-            <button id="btn-restore" class="secondary-btn full-width" style="background:#fef3c7; color:#92400e;">
-              📥 Restore from TG
-            </button>
-          </div>
-
-          <div class="divider" style="height:1px; background:var(--border); margin:16px 0;"></div>
-
-          <h3>Manage Tags</h3>
-          <ul id="settings-tags-list" class="tags-list" style="margin-bottom:8px;"></ul>
-          <div class="inline-form">
-            <input type="text" id="new-tag-input" placeholder="New tag name..." />
-            <button id="btn-add-tag" class="primary-btn">+</button>
-          </div>
+          <details class="settings-panel">
+            <summary>Manage Tags</summary>
+            <div class="settings-panel-body">
+              <ul id="settings-tags-list" class="tags-list"></ul>
+              <div class="inline-form">
+                <input type="text" id="new-tag-input" placeholder="New tag name..." />
+                <button id="btn-add-tag" class="primary-btn">+</button>
+              </div>
+            </div>
+          </details>
 
           <p id="settings-status" class="status-msg"></p>
 
+          <div class="divider"></div>
+          <h3>Interface</h3>
+          <p class="hint">Enable a tighter layout for faster scanning and reduced scrolling.</p>
+          <label class="toggle-row" for="compact-mode-toggle">
+            <span>Compact mode</span>
+            <input type="checkbox" id="compact-mode-toggle">
+          </label>
+
           <!-- Debug Log -->
-          <div style="margin-top:16px;">
-            <button id="btn-toggle-logs" class="secondary-btn small" style="font-size:10px; padding:2px 6px;">Show Debug
+          <div class="debug-log-wrap">
+            <button id="btn-toggle-logs" class="secondary-btn small">Show Debug
               Logs</button>
-            <pre id="debug-log"
-              style="display:none; background:#eee; padding:8px; border-radius:4px; font-size:10px; white-space:pre-wrap; max-height:100px; overflow:auto; margin-top:4px; border:1px solid #ddd;"></pre>
+            <pre id="debug-log" class="debug-log"></pre>
           </div>
         </div>
       </section>
@@ -108,8 +163,8 @@
           </div>
         </div>
 
-        <div class="filter-area" style="padding: 0 12px 8px 12px;">
-          <select id="reading-filter" class="tag-select" style="font-size:12px; padding:4px;">
+        <div class="filter-area">
+          <select id="reading-filter" class="tag-select">
             <option value="">All Tags</option>
           </select>
         </div>
@@ -119,36 +174,87 @@
         </div>
       </section>
 
+      <!-- AI Night School View -->
+      <section id="view-course" class="view">
+        <div class="input-area">
+          <button id="btn-save-course" class="primary-btn full-width">
+            <span class="icon">+</span> Save Link to Course
+          </button>
+          <div class="tags-input-container">
+            <select id="course-tag-selector" class="tag-select">
+              <option value="">Add Tag...</option>
+              <option value="Must-do">Must-do</option>
+              <option value="In Progress">In Progress</option>
+              <option value="Completed">Completed</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="filter-area">
+          <select id="course-filter" class="tag-select">
+            <option value="">All Tags</option>
+          </select>
+        </div>
+        <ul id="course-list" class="item-list"></ul>
+        <div id="course-empty" class="empty-state hidden">
+          <p>No courses saved yet.</p>
+        </div>
+      </section>
+
       <section id="view-todos" class="view">
         <div class="input-area">
-          <input type="text" id="todo-input" placeholder="What needs to be done?"
-            style="margin-bottom:8px; width:100%; box-sizing:border-box;">
+          <input type="text" id="todo-input" placeholder="What needs to be done?">
 
           <div class="todo-options">
             <select id="todo-tag-selector" class="tag-select">
               <option value="">Add Tag...</option>
             </select>
+            <input type="date" id="todo-date-input" class="date-input" title="Set Due Date">
             <textarea id="todo-note-input" placeholder="Add a note (optional)..." rows="2"></textarea>
           </div>
 
-          <div class="action-buttons" style="display:flex; gap:8px; margin-top:8px;">
-            <button id="btn-save-todo" class="primary-btn" style="flex:1;">
-              <span class="icon">🔗</span> Save Tab
+          <div class="priority-toggles">
+            <label>
+              <input type="checkbox" id="todo-urgent-input"> 🔥 Urgent
+            </label>
+            <label>
+              <input type="checkbox" id="todo-important-input"> ⭐ Important
+            </label>
+          </div>
+
+          <div class="action-buttons">
+            <button id="btn-save-todo" class="primary-btn full-width">
+              <span class="icon">🔗</span> Save Current Tab
             </button>
-            <button id="btn-add-manual-todo" class="secondary-btn"
-              style="flex:1; background:var(--bg-secondary); color:var(--text-primary); border:1px solid var(--border);">
+            <button id="btn-add-manual-todo" class="secondary-btn full-width">
               <span class="icon">+</span> Add Task
             </button>
           </div>
+          <div>
+            <button id="btn-sync-telegram" class="secondary-btn full-width">
+              <span class="icon">🔄</span> Sync from Telegram
+            </button>
+          </div>
         </div>
-        <div class="filter-area" style="padding: 0 12px 8px 12px;">
-          <select id="todo-filter" class="tag-select" style="font-size:12px; padding:4px;">
+        <div class="filter-area">
+          <select id="todo-filter" class="tag-select">
             <option value="">All Tags</option>
           </select>
         </div>
         <ul id="todo-list" class="item-list"></ul>
         <div id="todo-empty" class="empty-state hidden">
           <p>No tasks yet. Stay focused!</p>
+        </div>
+      </section>
+
+      <!-- History View -->
+      <section id="view-history" class="view">
+        <div class="filter-area">
+          <p>Shows completed and deleted items.</p>
+        </div>
+        <ul id="history-list" class="item-list"></ul>
+        <div id="history-empty" class="empty-state hidden">
+          <p>No history yet.</p>
         </div>
       </section>
     </main>
@@ -169,12 +275,14 @@
         <div id="tag-candidates" class="tags-list large-tags">
           <!-- Dynamic -->
         </div>
-        <button id="btn-close-tag-overlay" style="margin-top:12px;">Cancel</button>
+        <button id="btn-close-tag-overlay" class="secondary-btn mt-12">Cancel</button>
       </div>
     </div>
   </div>
   <script src="storage.js"></script>
   <script src="popup.js"></script>
+  <script src="popup.render.js"></script>
+  <script src="popup.sync.js"></script>
 </body>
 
 </html>

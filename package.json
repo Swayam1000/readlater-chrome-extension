@@ -1,0 +1,24 @@
+{
+  "name": "readlater_todos",
+  "version": "1.0.0",
+  "description": "A lightweight, privacy-focused Chrome extension to manage your reading list and daily tasks side-by-side.  Built with **Manifest V3**, it stores all data locally in your browser and supports bi-directional linking between readings and tasks.",
+  "main": "background.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Swayam1000/readlater-chrome-extension.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Swayam1000/readlater-chrome-extension/issues"
+  },
+  "homepage": "https://github.com/Swayam1000/readlater-chrome-extension#readme",
+  "dependencies": {
+    "convex": "^1.31.7"
+  }
+}
