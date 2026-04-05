@@ -116,6 +116,51 @@
           </details>
 
           <details class="settings-panel">
+            <summary>Obsidian Vault</summary>
+            <div class="settings-panel-body">
+              <p class="hint">Maintains one dedicated Markdown note in your vault. No other Obsidian files are touched.</p>
+
+              <div class="form-group">
+                <label for="obsidian-vault-name">Vault Name, ID, or Absolute Path</label>
+                <input type="text" id="obsidian-vault-name" placeholder="My Knowledge Vault or /Users/name/Documents/Vault" />
+              </div>
+
+              <div class="form-group">
+                <label for="obsidian-note-path">Managed Note Path</label>
+                <input type="text" id="obsidian-note-path" placeholder="AI Learnings/sources/READO.md" />
+              </div>
+
+              <label class="toggle-row" for="obsidian-auto-sync-toggle">
+                <span>Auto-sync changes to Obsidian</span>
+                <input type="checkbox" id="obsidian-auto-sync-toggle">
+              </label>
+
+              <div class="obsidian-preview">
+                <div class="obsidian-preview-label">Managed file</div>
+                <div class="obsidian-preview-value" id="obsidian-folder-preview">AI Learnings/sources/READO.md</div>
+              </div>
+
+              <div class="inline-actions">
+                <button id="btn-save-obsidian-settings" class="primary-btn full-width">
+                  Save Obsidian Settings
+                </button>
+                <button id="btn-grant-obsidian-access" class="secondary-btn full-width">
+                  Grant Vault Access
+                </button>
+              </div>
+
+              <div class="inline-actions">
+                <button id="btn-sync-obsidian" class="secondary-btn full-width">
+                  Sync All to Obsidian
+                </button>
+                <button id="btn-open-obsidian-note" class="secondary-btn full-width">
+                  Open Note
+                </button>
+              </div>
+            </div>
+          </details>
+
+          <details class="settings-panel">
             <summary>Manage Tags</summary>
             <div class="settings-panel-body">
               <ul id="settings-tags-list" class="tags-list"></ul>
@@ -148,9 +193,14 @@
       <!-- Reading List View -->
       <section id="view-reading" class="view active">
         <div class="input-area">
-          <button id="btn-save-current" class="primary-btn full-width">
-            <span class="icon">+</span> Save Current Tab
-          </button>
+          <div class="inline-actions">
+            <button id="btn-clip-obsidian" class="primary-btn full-width">
+              Clip and send to Obsidian
+            </button>
+            <button id="btn-save-current" class="secondary-btn full-width">
+              <span class="icon">+</span> Save Current Tab
+            </button>
+          </div>
           <div class="tags-input-container">
             <select id="tag-selector" class="tag-select">
               <option value="">Add Tag...</option>
@@ -161,6 +211,7 @@
               <option value="Job to apply">Job to apply</option>
             </select>
           </div>
+          <p id="reading-status" class="status-msg"></p>
         </div>
 
         <div class="filter-area">
@@ -283,6 +334,7 @@
   <script src="popup.js"></script>
   <script src="popup.render.js"></script>
   <script src="popup.sync.js"></script>
+  <script src="popup.obsidian.js"></script>
 </body>
 
 </html>

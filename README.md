@@ -8,7 +8,7 @@ Built with **Manifest V3**, it stores all data locally in your browser and suppo
 ### 📚 Reading List
 - **One-click Save**: Instantly save the current tab.
 - **Tags**: Organize with color-coded tags (e.g., "Must-read", "Structure").
-- **Dynamic Colors**: valid PNGs New tags automatically get assigned a consistent, vibrant color.
+- **Dynamic Colors**: New tags automatically get assigned a consistent, vibrant color.
 
 ### ✅ Todo List
 - **Task Management**: Create tasks directly or **save the current tab as a task**.
@@ -45,10 +45,16 @@ Automatically sync important items to your Telegram Channel or Chat.
 2. Select a tag (optional).
 3. Click **Save Current Tab**.
 
+### Clip And Send To Obsidian
+1. Open the page you want in Obsidian.
+2. Open the extension on the **Reading** tab.
+3. Click **Clip and send to Obsidian**.
+4. The current page is saved to ReadDo and the managed note `AI Learnings/sources/READO.md` is updated immediately.
+
 ### Managing Todos
 1. Open the **Todos** tab.
 2. (Optional) Select a tag and add a **Note**.
-3. Click **Save Current Tab as Task** to capture the URL, or just type a title if adding manually (future update).
+3. Click **Save Current Tab** to capture the current page as a task, or type a title and click **Add Task** for a manual task.
 4. Use the tick checkmark (✓) to toggle status and the cross (×) to delete.
 
 ### ☁️ Cloud Sync (Multi-Device Support)
@@ -89,6 +95,32 @@ npx convex dev
 4. Click **Save Settings**, then test:
 - **☁️ Backup to Convex**
 - **📥 Restore from Convex**
+
+### Obsidian Sync Setup
+You can sync the extension into one managed Markdown note inside your Obsidian vault.
+
+What gets updated:
+- One file only, for example `AI Learnings/sources/READO.md`
+- The extension rewrites that same note in place on each sync
+- No other Obsidian files are created or modified
+
+Setup:
+1. Install and open Obsidian at least once on your machine.
+2. Open the extension **Settings** and expand **Obsidian Vault**.
+3. Fill:
+- `Vault Name, ID, or Absolute Path`: either the exact Obsidian vault name, the vault ID, or the full filesystem path to the vault folder
+- `Managed Note Path`: relative path to the note inside the vault, default `AI Learnings/sources/READO.md`
+- `Auto-sync changes to Obsidian`: optional, off by default
+4. Click **Save Obsidian Settings**.
+5. Click **Grant Vault Access** and choose the actual vault folder for reliable direct file writes.
+6. Click **Sync All to Obsidian** to write the managed note.
+
+Notes:
+- No Obsidian plugin is required.
+- Direct vault access is required for writing. The extension does not use `obsidian://new` for sync writes anymore.
+- If vault lookup fails, use the full absolute path to the vault folder instead of the display name.
+- Auto-sync refreshes the managed note when you add, update, delete, or relink items.
+- Manual sync is the safest first run because it rewrites the full note in one pass.
 
 ### 📱 Telegram Setup
 1.  Create a bot via [@BotFather](https://t.me/BotFather) and get the **API Token**.

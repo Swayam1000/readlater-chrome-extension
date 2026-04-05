@@ -6,6 +6,28 @@
  */
 
 const Storage = {
+  async _syncObsidianItemsIfEnabled() {
+    const obsidianSync = globalThis.ObsidianSync;
+    if (obsidianSync && typeof obsidianSync.syncItemsIfEnabled === 'function') {
+      try {
+        await obsidianSync.syncItemsIfEnabled();
+      } catch (error) {
+        console.error('Obsidian auto-sync failed', error);
+      }
+    }
+  },
+
+  async _syncObsidianAllIfEnabled() {
+    const obsidianSync = globalThis.ObsidianSync;
+    if (obsidianSync && typeof obsidianSync.syncAllIfEnabled === 'function') {
+      try {
+        await obsidianSync.syncAllIfEnabled();
+      } catch (error) {
+        console.error('Obsidian auto-sync failed', error);
+      }
+    }
+  },
+
   // Load all data
   async loadData() {
     return new Promise((resolve) => {
@@ -34,43 +56,53 @@ const Storage = {
 
   async addReadingItem(item) {
     const { readingList, todoList } = await this.loadData();
+    const id = crypto.randomUUID();
+    const createdAt = Date.now();
     const newItem = {
       ...item,
-      id: crypto.randomUUID(),
-      createdAt: Date.now(),
+      id,
+      createdAt,
       status: 'unread',
       linkedTodoIds: []
     };
     readingList.unshift(newItem); // Add to top
     await this._saveLists(readingList, todoList, null, await this._getCourseList());
+    await this._syncObsidianItemsIfEnabled();
     return newItem;
   },
 
   async addCourseItem(item) {
     const { readingList, todoList, courseList } = await this.loadData();
+    const id = crypto.randomUUID();
+    const createdAt = Date.now();
     const newItem = {
       ...item,
-      id: crypto.randomUUID(),
-      createdAt: Date.now(),
+      id,
+      createdAt,
       status: 'unread',
       linkedTodoIds: []
     };
     courseList.unshift(newItem); // Add to top
     await this._saveLists(readingList, todoList, null, courseList);
+    await this._syncObsidianItemsIfEnabled();
     return newItem;
   },
 
   async addTodoItem(item) {
     const { readingList, todoList } = await this.loadData();
+    const id = crypto.randomUUID();
+    const createdAt = Date.now();
     const newItem = {
       ...item,
-      id: crypto.randomUUID(),
-      createdAt: Date.now(),
+      id,
+      createdAt,
       status: 'open',
-      linkedReadingIds: []
+      linkedReadingIds: [],
+      linkedCourseIds: item.linkedCourseIds || []
     };
     todoList.unshift(newItem); // Add to top
     await this._saveLists(readingList, todoList);
+    await this._syncObsidianItemsIfEnabled();
     return newItem;
   },
 
@@ -78,8 +110,9 @@ const Storage = {
     const { readingList, todoList } = await this.loadData();
     const index = readingList.findIndex(i => i.id === id);
     if (index !== -1) {
-      readingList[index] = { ...readingList[index], ...updates };
+      readingList[index] = { ...readingList[index], ...updates, updatedAt: Date.now() };
       await this._saveLists(readingList, todoList, null, await this._getCourseList());
+      await this._syncObsidianItemsIfEnabled();
     }
   },
 
@@ -87,8 +120,9 @@ const Storage = {
     const { readingList, todoList, courseList } = await this.loadData();
     const index = courseList.findIndex(i => i.id === id);
     if (index !== -1) {
-      courseList[index] = { ...courseList[index], ...updates };
+      courseList[index] = { ...courseList[index], ...updates, updatedAt: Date.now() };
       await this._saveLists(readingList, todoList, null, courseList);
+      await this._syncObsidianItemsIfEnabled();
     }
   },
 
@@ -96,8 +130,9 @@ const Storage = {
     const { readingList, todoList } = await this.loadData();
     const index = todoList.findIndex(i => i.id === id);
     if (index !== -1) {
-      todoList[index] = { ...todoList[index], ...updates };
+      todoList[index] = { ...todoList[index], ...updates, updatedAt: Date.now() };
       await this._saveLists(readingList, todoList, null, await this._getCourseList());
+      await this._syncObsidianItemsIfEnabled();
     }
   },
 
@@ -105,7 +140,6 @@ const Storage = {
     const { readingList, todoList, historyList } = await this.loadData();
     const index = readingList.findIndex(i => i.id === id);
     if (index !== -1) {
-      // Remove links from todos
       const item = readingList[index];
       item.linkedTodoIds.forEach(todoId => {
         const todo = todoList.find(t => t.id === todoId);
@@ -114,17 +148,17 @@ const Storage = {
         }
       });
 
-      // Add to history
       const historyItem = {
         ...item,
         status: 'deleted',
         deletedAt: Date.now(),
-        type: 'reading' // Mark type
+        type: 'reading'
       };
       historyList.unshift(historyItem);
 
       readingList.splice(index, 1);
       await this._saveLists(readingList, todoList, historyList);
+      await this._syncObsidianItemsIfEnabled();
     }
   },
 
@@ -133,7 +167,6 @@ const Storage = {
     const nextCourseList = courseList || [];
     const index = todoList.findIndex(i => i.id === id);
     if (index !== -1) {
-      // Remove links from reading items
       const item = todoList[index];
       item.linkedReadingIds.forEach(readingId => {
         const rItem = readingList.find(r => r.id === readingId);
@@ -142,7 +175,6 @@ const Storage = {
         }
       });
 
-      // Remove links from course items
       (item.linkedCourseIds || []).forEach(courseId => {
         const cItem = nextCourseList.find(c => c.id === courseId);
         if (cItem) {
@@ -150,17 +182,17 @@ const Storage = {
         }
       });
 
-      // Add to history
       const historyItem = {
         ...item,
         status: 'deleted',
         deletedAt: Date.now(),
-        type: 'todo' // Mark type
+        type: 'todo'
       };
       historyList.unshift(historyItem);
 
       todoList.splice(index, 1);
       await this._saveLists(readingList, todoList, historyList, nextCourseList);
+      await this._syncObsidianItemsIfEnabled();
     }
   },
 
@@ -168,7 +200,6 @@ const Storage = {
     const { readingList, todoList, historyList, courseList } = await this.loadData();
     const index = courseList.findIndex(i => i.id === id);
     if (index !== -1) {
-      // Remove links from todos
       const item = courseList[index];
       item.linkedTodoIds.forEach(todoId => {
         const todo = todoList.find(t => t.id === todoId);
@@ -177,17 +208,17 @@ const Storage = {
         }
       });
 
-      // Add to history
       const historyItem = {
         ...item,
         status: 'deleted',
         deletedAt: Date.now(),
-        type: 'course' // Mark type
+        type: 'course'
       };
       historyList.unshift(historyItem);
 
       courseList.splice(index, 1);
       await this._saveLists(readingList, todoList, historyList, courseList);
+      await this._syncObsidianItemsIfEnabled();
     }
   },
 
@@ -204,6 +235,7 @@ const Storage = {
         reading.linkedTodoIds.push(todoId);
       }
       await this._saveLists(readingList, todoList);
+      await this._syncObsidianItemsIfEnabled();
     }
   },
 
@@ -219,6 +251,7 @@ const Storage = {
       reading.linkedTodoIds = reading.linkedTodoIds.filter(id => id !== todoId);
     }
     await this._saveLists(readingList, todoList, null, await this._getCourseList());
+    await this._syncObsidianItemsIfEnabled();
   },
 
   async linkCourseItem(todoId, courseId) {
@@ -235,6 +268,7 @@ const Storage = {
         course.linkedTodoIds.push(todoId);
       }
       await this._saveLists(readingList, todoList, null, courseList);
+      await this._syncObsidianItemsIfEnabled();
     }
   },
 
@@ -250,9 +284,9 @@ const Storage = {
       course.linkedTodoIds = course.linkedTodoIds.filter(id => id !== todoId);
     }
     await this._saveLists(readingList, todoList, null, courseList);
+    await this._syncObsidianItemsIfEnabled();
   },
 
-  // Helper to ensure we don't overwrite current courseList when using old save methods
   async _getCourseList() {
     return new Promise((resolve) => {
       chrome.storage.local.get(['courseList'], (result) => {
@@ -277,6 +311,7 @@ const Storage = {
 
       await chrome.storage.local.clear();
       await chrome.storage.local.set(data);
+      await this._syncObsidianAllIfEnabled();
       return true;
     } catch (e) {
       console.error('Import failed', e);
@@ -285,7 +320,4 @@ const Storage = {
   }
 };
 
-// Export for usage in modules (if using checking) or just global in non-module context
-// For Chrome Extensions without modules, we often just attach to window or let it be global.
-// We will export it as a global object.
 globalThis.Storage = Storage;

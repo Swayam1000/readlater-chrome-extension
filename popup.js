@@ -1,48 +1,50 @@
 // popup.js
 
 // -- State --
-let currentTab = 'reading'; // 'reading' | 'todos'
 let activeReadingList = [];
-let activeCourseList = []; // New Course List
-let activeTodo = [];
+let activeCourseList = [];
 let currentReadFilter = "";
-let currentCourseFilter = ""; // Course filter
-let currentTodoFilter = ""; // State for filters
+let currentCourseFilter = "";
+let currentTodoFilter = "";
 let activeTodoList = [];
-let activeHistoryList = []; // Add history list
+let activeHistoryList = [];
 let linkingState = null; // { sourceId, sourceType: 'reading'|'todo' }
 
 // -- DOM Elements --
 const tabBtns = document.querySelectorAll('.tab-btn');
 const views = {
     reading: document.getElementById('view-reading'),
-    course: document.getElementById('view-course'), // Add course view
+    course: document.getElementById('view-course'),
     todos: document.getElementById('view-todos'),
-    history: document.getElementById('view-history'), // Add history view
+    history: document.getElementById('view-history'),
     settings: document.getElementById('view-settings')
 };
 const lists = {
     reading: document.getElementById('reading-list'),
-    course: document.getElementById('course-list'), // Add course list
+    course: document.getElementById('course-list'),
     todos: document.getElementById('todo-list'),
-    history: document.getElementById('history-list') // Add history list
+    history: document.getElementById('history-list')
 };
 const emptyStates = {
     reading: document.getElementById('reading-empty'),
-    course: document.getElementById('course-empty'), // Add course empty
+    course: document.getElementById('course-empty'),
     todos: document.getElementById('todo-empty'),
-    history: document.getElementById('history-empty') // Add history empty
+    history: document.getElementById('history-empty')
 };
 
 const btnSettings = document.getElementById('btn-settings');
 const btnSaveSettings = document.getElementById('btn-save-settings');
 const btnSaveConvexSettings = document.getElementById('btn-save-convex-settings');
+const btnSaveObsidianSettings = document.getElementById('btn-save-obsidian-settings');
 const btnTestConnection = document.getElementById('btn-test-connection');
 const inputBotToken = document.getElementById('tg-bot-token');
 const inputChatId = document.getElementById('tg-chat-id');
 const inputConvexBackupUrl = document.getElementById('convex-backup-url');
 const inputConvexRestoreUrl = document.getElementById('convex-restore-url');
 const inputConvexSyncKey = document.getElementById('convex-sync-key');
+const inputObsidianVaultName = document.getElementById('obsidian-vault-name');
+const inputObsidianNotePath = document.getElementById('obsidian-note-path');
+const obsidianAutoSyncToggle = document.getElementById('obsidian-auto-sync-toggle');
 const compactModeToggle = document.getElementById('compact-mode-toggle');
 const settingsStatus = document.getElementById('settings-status');
 
@@ -53,7 +55,9 @@ const btnAddTag = document.getElementById('btn-add-tag');
 // Course Elements
 const btnSaveCourse = document.getElementById('btn-save-course');
 // Reading Elements
+const btnClipObsidian = document.getElementById('btn-clip-obsidian');
 const btnSaveCurrent = document.getElementById('btn-save-current');
+const readingStatus = document.getElementById('reading-status');
 const btnSaveTodo = document.getElementById('btn-save-todo');
 const todoTagSelector = document.getElementById('todo-tag-selector');
 const todoNoteInput = document.getElementById('todo-note-input');
@@ -68,6 +72,157 @@ const btnCloseOverlay = document.getElementById('btn-close-overlay');
 const tagOverlay = document.getElementById('tag-overlay');
 const tagCandidates = document.getElementById('tag-candidates');
 const btnCloseTagOverlay = document.getElementById('btn-close-tag-overlay');
+const DEFAULT_OBSIDIAN_NOTE_PATH = 'AI Learnings/sources/READO.md';
+
+function normalizeObsidianNotePath(value = '') {
+    const path = String(value).trim().replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
+    if (!path || /^ReadDo\/(Reading|Courses|Tasks)\//.test(path) || path === 'ReadDo/ReadDo Hub.md') {
+        return DEFAULT_OBSIDIAN_NOTE_PATH;
+    }
+    if (path === 'AI Learnings/sources/ReadDo.md') {
+        return DEFAULT_OBSIDIAN_NOTE_PATH;
+    }
+    return path;
+}
+
+function setReadingStatus(text, kind = '') {
+    if (!readingStatus) return;
+    readingStatus.textContent = text;
+    readingStatus.className = kind ? `status-msg ${kind}` : 'status-msg';
+}
+
+function getReadableError(error, fallback) {
+    return error?.message || fallback;
+}
+
+async function extractClipContentFromTab(tab) {
+    if (!tab?.id || !tab?.url || !/^https?:/i.test(tab.url)) {
+        return null;
+    }
+
+    if (!chrome.scripting?.executeScript) {
+        throw new Error('Page clipping requires the scripting permission. Reload the extension first.');
+    }
+
+    const results = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: () => {
+            const MAX_CLIP_LENGTH = 5000;
+
+            const cleanText = (value = '') => String(value)
+                .replace(/\s+/g, ' ')
+                .trim();
+
+            const clipSelection = cleanText(window.getSelection?.().toString() || '');
+
+            const metaDescription = cleanText(
+                document.querySelector('meta[name="description"]')?.content ||
+                document.querySelector('meta[property="og:description"]')?.content ||
+                ''
+            );
+
+            const candidateSelectors = [
+                'article',
+                'main',
+                '[role="main"]',
+                '.article',
+                '.article-content',
+                '.post-content',
+                '.entry-content',
+                '.content'
+            ];
+
+            let bodyClip = '';
+            for (const selector of candidateSelectors) {
+                const node = document.querySelector(selector);
+                const text = cleanText(node?.innerText || node?.textContent || '');
+                if (text.length > 280) {
+                    bodyClip = text;
+                    break;
+                }
+            }
+
+            if (!bodyClip) {
+                const paragraphClip = Array.from(document.querySelectorAll('p'))
+                    .map(node => cleanText(node.innerText || node.textContent || ''))
+                    .filter(text => text.length > 40)
+                    .slice(0, 8)
+                    .join('\n\n');
+                bodyClip = paragraphClip || cleanText(document.body?.innerText || '');
+            }
+
+            const clipText = (clipSelection || bodyClip || metaDescription).slice(0, MAX_CLIP_LENGTH);
+
+            return {
+                title: cleanText(document.title || ''),
+                metaDescription,
+                clipText,
+                usedSelection: Boolean(clipSelection)
+            };
+        }
+    });
+
+    return results?.[0]?.result || null;
+}
+
+async function withBusyButton(button, busyText, action) {
+    if (!button) return action();
+    const originalHtml = button.innerHTML;
+    button.disabled = true;
+    button.textContent = busyText;
+    try {
+        return await action();
+    } finally {
+        button.disabled = false;
+        button.innerHTML = originalHtml;
+    }
+}
+
+async function saveCurrentTabToReadDo({ clipContent = false } = {}) {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const tagSelector = document.getElementById('tag-selector');
+    const selectedTag = tagSelector?.value || '';
+
+    if (!tab?.url) {
+        throw new Error('No active webpage is available to save.');
+    }
+
+    let clip = null;
+    if (clipContent) {
+        try {
+            clip = await extractClipContentFromTab(tab);
+        } catch (error) {
+            console.warn('Page clip extraction failed', error);
+        }
+    }
+
+    const item = await Storage.addReadingItem({
+        url: tab.url,
+        title: clip?.title || tab.title,
+        favIconUrl: tab.favIconUrl || '',
+        tags: selectedTag ? [selectedTag] : [],
+        notes: clip?.clipText || ''
+    });
+
+    if (selectedTag === 'Must-read' || selectedTag === 'Video to watch') {
+        if (typeof window.checkAndSyncToTelegram === 'function') {
+            await window.checkAndSyncToTelegram(tab.title, tab.url, selectedTag);
+        }
+    }
+
+    if (tagSelector) {
+        tagSelector.value = '';
+    }
+    await refreshData();
+    return { item, clip };
+}
+
+async function syncManagedNoteToObsidian() {
+    if (!globalThis.ObsidianSync || typeof globalThis.ObsidianSync.syncAll !== 'function') {
+        throw new Error('Obsidian sync module not loaded.');
+    }
+    await globalThis.ObsidianSync.syncAll({ updateStatus: false });
+}
 
 // -- Initialization --
 document.addEventListener('DOMContentLoaded', async () => {
@@ -76,7 +231,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadUiPreferences();
     await updateMainTagSelector();
     await updateTodoTagSelector();
-    await updateFilterDropdowns(); // Init filters
+    await updateFilterDropdowns();
     await refreshData();
     uiLog('Popup Initialized.');
 });
@@ -84,23 +239,20 @@ document.addEventListener('DOMContentLoaded', async () => {
 function setupTabs() {
     tabBtns.forEach(btn => {
         btn.addEventListener('click', () => {
-            // Update UI state
             tabBtns.forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
 
             const tab = btn.dataset.tab;
-            currentTab = tab;
 
             document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
             views[tab].classList.add('active');
-            views.settings.classList.remove('active'); // Ensure settings is closed
+            views.settings.classList.remove('active');
         });
     });
 
-    // Settings Toggle
     btnSettings.addEventListener('click', () => {
         document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-        tabBtns.forEach(b => b.classList.remove('active')); // Deselect tabs
+        tabBtns.forEach(b => b.classList.remove('active'));
         views.settings.classList.add('active');
         loadSettings();
         renderSettingsTags();
@@ -114,6 +266,9 @@ function setupEventListeners() {
         const convexBackupUrl = inputConvexBackupUrl.value.trim();
         const convexRestoreUrl = inputConvexRestoreUrl.value.trim();
         const convexSyncKey = inputConvexSyncKey.value.trim();
+        const obsidianVaultName = inputObsidianVaultName?.value.trim() || '';
+        const obsidianNotePath = normalizeObsidianNotePath(inputObsidianNotePath?.value);
+        const obsidianAutoSync = !!obsidianAutoSyncToggle?.checked;
 
         await chrome.storage.local.set({
             telegramBotToken: token,
@@ -121,19 +276,31 @@ function setupEventListeners() {
             convexBackupUrl,
             convexRestoreUrl,
             convexSyncKey,
+            obsidianVaultName,
+            obsidianNotePath,
+            obsidianRootFolder: '',
+            obsidianAutoSync,
             uiCompactMode: compactModeToggle?.checked || false
         });
+
+        if (inputObsidianNotePath) {
+            inputObsidianNotePath.value = obsidianNotePath;
+        }
+        globalThis.updateObsidianNotePreview?.();
 
         settingsStatus.textContent = 'Saved!';
         settingsStatus.className = 'status-msg success';
         setTimeout(() => settingsStatus.textContent = '', 2000);
     };
 
-    // Save Settings
     btnSaveSettings.addEventListener('click', saveSettingsHandler);
     btnSaveConvexSettings?.addEventListener('click', saveSettingsHandler);
+    btnSaveObsidianSettings?.addEventListener('click', saveSettingsHandler);
 
-    // Paste Buttons
+    inputObsidianNotePath?.addEventListener('input', () => {
+        globalThis.updateObsidianNotePreview?.();
+    });
+
     const btnPasteToken = document.getElementById('btn-paste-token');
     const btnPasteChatId = document.getElementById('btn-paste-chatid');
 
@@ -161,7 +328,6 @@ function setupEventListeners() {
         });
     }
 
-    // Test Connection
     btnTestConnection.addEventListener('click', async () => {
         const token = inputBotToken.value.trim();
         const chatId = inputChatId.value.trim();
@@ -188,14 +354,12 @@ function setupEventListeners() {
         }
     });
 
-    // Add New Tag (Settings)
     btnAddTag.addEventListener('click', async () => {
         const tagName = newTagInput.value.trim();
         if (tagName) {
             await addCustomTag(tagName);
             newTagInput.value = '';
             renderSettingsTags();
-            // Also need to refresh selectors if they are visible, but they usually aren't.
             await updateMainTagSelector();
             await updateTodoTagSelector();
             await updateFilterDropdowns();
@@ -210,34 +374,43 @@ function setupEventListeners() {
         });
     }
 
-    // Save Current Tab
     btnSaveCurrent.addEventListener('click', async () => {
-        // Get current tab info
-        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-        const tagSelector = document.getElementById('tag-selector');
-        const selectedTag = tagSelector.value;
-
-        if (tab) {
-            await Storage.addReadingItem({
-                url: tab.url,
-                title: tab.title,
-                favIconUrl: tab.favIconUrl || '',
-                tags: selectedTag ? [selectedTag] : []
+        setReadingStatus('', '');
+        try {
+            await withBusyButton(btnSaveCurrent, 'Saving...', async () => {
+                await saveCurrentTabToReadDo();
             });
-
-            // Sync if Must-read or Video to watch
-            if (selectedTag === 'Must-read' || selectedTag === 'Video to watch') {
-                if (typeof window.checkAndSyncToTelegram === 'function') {
-                    await window.checkAndSyncToTelegram(tab.title, tab.url, selectedTag);
-                }
-            }
-
-            tagSelector.value = ""; // Reset
-            await refreshData();
+            setReadingStatus('Saved current page to ReadDo.', 'success');
+        } catch (error) {
+            setReadingStatus(`Could not save current page: ${getReadableError(error, 'Unknown error')}`, 'error');
         }
     });
 
-    // Save Todo (Current Tab)
+    btnClipObsidian?.addEventListener('click', async () => {
+        setReadingStatus('', '');
+        let savedToReadDo = false;
+        let clip = null;
+        try {
+            await withBusyButton(btnClipObsidian, 'Clipping...', async () => {
+                const result = await saveCurrentTabToReadDo({ clipContent: true });
+                savedToReadDo = true;
+                clip = result?.clip || null;
+                await syncManagedNoteToObsidian();
+            });
+            if (clip?.clipText) {
+                setReadingStatus('Clipped current page and updated READO.md.', 'success');
+            } else {
+                setReadingStatus('Saved current page and updated READO.md. This page did not expose readable text, so only the link was stored.', 'warning');
+            }
+        } catch (error) {
+            if (savedToReadDo) {
+                setReadingStatus(`Saved current page, but Obsidian sync failed: ${getReadableError(error, 'Unknown error')}`, 'warning');
+            } else {
+                setReadingStatus(`Could not clip current page: ${getReadableError(error, 'Unknown error')}`, 'error');
+            }
+        }
+    });
+
     btnSaveTodo.addEventListener('click', async () => {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
         const selectedTag = todoTagSelector.value;
@@ -245,11 +418,6 @@ function setupEventListeners() {
         const dueDate = todoDateInput.value;
         const isUrgent = todoUrgentInput.checked;
         const isImportant = todoImportantInput.checked;
-        const manualTitle = document.getElementById('todo-input').value.trim();
-
-        // If manual title is present, prioritize it? Or should this button ONLY be for current tab?
-        // User asked for "another button" for manual add.
-        // So this button remains strictly for "Save Current Tab".
 
         if (tab) {
             await Storage.addTodoItem({
@@ -267,7 +435,7 @@ function setupEventListeners() {
             todoDateInput.value = '';
             todoUrgentInput.checked = false;
             todoImportantInput.checked = false;
-            document.getElementById('todo-input').value = ''; // Clear manual input just in case
+            document.getElementById('todo-input').value = '';
             todoManualInput?.dispatchEvent(new Event('input'));
             await refreshData();
         }
@@ -297,7 +465,7 @@ function setupEventListeners() {
             await Storage.addTodoItem({
                 title: title,
                 description: note,
-                url: '', // No URL for manual task
+                url: '',
                 dueDate: dueDate,
                 isUrgent: isUrgent,
                 isImportant: isImportant,
@@ -313,7 +481,6 @@ function setupEventListeners() {
             syncTodoActionPriority();
             await refreshData();
         } else {
-            // Highlight input if empty
             todoManualInput.focus();
             todoManualInput.style.borderColor = 'red';
             setTimeout(() => todoManualInput.style.borderColor = '', 1000);
@@ -326,7 +493,6 @@ function setupEventListeners() {
         if (e.key === 'Enter') addManualTodoHandler();
     });
 
-    // Sync from Telegram
     const btnSyncTelegram = document.getElementById('btn-sync-telegram');
     if (btnSyncTelegram) {
         btnSyncTelegram.addEventListener('click', async () => {
@@ -334,11 +500,9 @@ function setupEventListeners() {
         });
     }
 
-    // Close Overlay
     btnCloseOverlay.addEventListener('click', closeOverlay);
     btnCloseTagOverlay.addEventListener('click', closeTagOverlay);
 
-    // Close on Click Outside
     overlay.addEventListener('click', (e) => {
         if (e.target === overlay) closeOverlay();
     });
@@ -346,7 +510,6 @@ function setupEventListeners() {
         if (e.target === tagOverlay) closeTagOverlay();
     });
 
-    // Filter Change Listeners
     if (readingFilter) {
         readingFilter.addEventListener('change', () => {
             currentReadFilter = readingFilter.value;
@@ -360,7 +523,6 @@ function setupEventListeners() {
         });
     }
 
-    // Save Course (Current Tab)
     if (btnSaveCourse) {
         btnSaveCourse.addEventListener('click', async () => {
             const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -381,7 +543,6 @@ function setupEventListeners() {
         });
     }
 
-    // Course Filter
     const courseFilter = document.getElementById('course-filter');
     if (courseFilter) {
         courseFilter.addEventListener('change', () => {
@@ -391,7 +552,6 @@ function setupEventListeners() {
     }
 }
 
-// -- Rendering --
 async function refreshData() {
     const data = await Storage.loadData();
     activeReadingList = data.readingList;
@@ -405,8 +565,6 @@ async function refreshData() {
     renderHistoryList();
 }
 
-
-// -- Linking Overlay Logic --
 function openLinkOverlay(sourceId, type) {
     linkingState = { sourceId, type };
     overlay.classList.remove('hidden');
@@ -418,12 +576,8 @@ function closeOverlay() {
     linkingState = null;
 }
 
-
-// -- Tag Overlay Logic --
 let taggingTargetId = null;
-let taggingTargetType = null; // 'reading' or 'todo'
-
-// ... getAvailableTags etc ...
+let taggingTargetType = null;
 async function getAvailableTags() {
     const defaultTags = ["Must-read", "Priority", "Course to check", "Interesting Person", "Interesting Project", "Job to apply", "Must-do", "In Progress", "Completed"];
     const result = await chrome.storage.local.get(['allTags']);
@@ -474,7 +628,6 @@ function closeTagOverlay() {
 }
 
 
-// Update the main Tag Selector in the Save Tab view as well!
 async function updateMainTagSelector() {
     const tagSelector = document.getElementById('tag-selector');
     if (!tagSelector) return;
@@ -504,7 +657,6 @@ async function updateTodoTagSelector() {
     todoTagSelector.value = currentVal;
 }
 
-// Filter Dropdowns
 const readingFilter = document.getElementById('reading-filter');
 const todoFilter = document.getElementById('todo-filter');
 
@@ -524,10 +676,6 @@ async function updateFilterDropdowns() {
     readingFilter.value = currentReadVal;
     todoFilter.value = currentTodoVal;
 }
-// We need to call this when popup opens
-
-
-// -- Telegram Sync Logic --
 async function loadSettings() {
     const result = await chrome.storage.local.get([
         'telegramBotToken',
@@ -535,6 +683,10 @@ async function loadSettings() {
         'convexBackupUrl',
         'convexRestoreUrl',
         'convexSyncKey',
+        'obsidianVaultName',
+        'obsidianNotePath',
+        'obsidianRootFolder',
+        'obsidianAutoSync',
         'uiCompactMode'
     ]);
     inputBotToken.value = result.telegramBotToken || '';
@@ -542,9 +694,23 @@ async function loadSettings() {
     inputConvexBackupUrl.value = result.convexBackupUrl || '';
     inputConvexRestoreUrl.value = result.convexRestoreUrl || '';
     inputConvexSyncKey.value = result.convexSyncKey || '';
+    if (inputObsidianVaultName) {
+        inputObsidianVaultName.value = result.obsidianVaultName || '';
+    }
+    if (inputObsidianNotePath) {
+        const legacyRootFolder = result.obsidianRootFolder || '';
+        const migratedNotePath = legacyRootFolder && legacyRootFolder !== 'ReadDo'
+            ? `${legacyRootFolder.replace(/\/+$/g, '')}/READO.md`
+            : DEFAULT_OBSIDIAN_NOTE_PATH;
+        inputObsidianNotePath.value = normalizeObsidianNotePath(result.obsidianNotePath || migratedNotePath);
+    }
+    if (obsidianAutoSyncToggle) {
+        obsidianAutoSyncToggle.checked = !!result.obsidianAutoSync;
+    }
     if (compactModeToggle) {
         compactModeToggle.checked = !!result.uiCompactMode;
     }
+    globalThis.updateObsidianNotePreview?.();
     applyCompactMode(!!result.uiCompactMode);
 }
 
